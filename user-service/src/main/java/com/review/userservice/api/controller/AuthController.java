@@ -2,6 +2,7 @@ package com.review.userservice.api.controller;
 
 
 import com.review.userservice.api.dto.auth.LoginReq;
+import com.review.userservice.api.dto.auth.RegisterReq;
 import com.review.userservice.application.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,11 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginReq request) {
         log.info("Start handle login request");
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterReq request) {
+        return ResponseEntity.ok(authService.register(request));
     }
 
 
