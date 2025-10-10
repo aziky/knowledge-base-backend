@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException ex) {
         log.error("Entity not found: {}", ex.getMessage());
-        return ResponseEntity.status(404).body(ApiResponse.notFound("Resource not found"));
+        return ResponseEntity.status(404).body(ApiResponse.notFound(ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

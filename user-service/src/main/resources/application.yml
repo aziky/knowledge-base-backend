@@ -8,9 +8,9 @@ spring:
     name: user-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/kbdb
-    username: kbuser
-    password: kbpass
+    url: jdbc:postgresql://knowledge-base-db.c30ekiwk6ooq.ap-southeast-1.rds.amazonaws.com:5432/knowledge_base
+    username: postgres
+    password: mypassword
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -24,33 +24,10 @@ spring:
         default_schema: user
 
 
-#  cloud:
-#    consul:
-#      discovery:
-#        prefer-ip-address: true
-#        ip-address: host.docker.internal
-#        hostname: host.docker.internal
-#        service-name: user-service
-#        health-check-path: /api/actuator/health
-#        health-check-interval: 15s
-#        instance-id: user-service-7071
-#        register: true
-#        enabled: true
-#logging:
-#  level:
-#    org.springframework.cloud.consul: TRACE
-#    org.springframework.cloud.consul.discovery: TRACE
-
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-  endpoint:
-    health:
-      show-details: always
-
+jwt:
+  secret-key: $e12ddd7c24485873318bcdfce6696932504b8cf91b42256570a03825a5c4083023ddf4f73f0c21da9ff63a4804d98b4d681c3bca88b028f6be75254078a0346530d105c2d8318b044f2c3f633ab802d18f5964ec3b063f66f01d2a0178605c2cd8267a5589432ad6f6b45b83b211eb3f57f71b32f9aa9d75e3f72b64c367703017acbe0a08caf43dbabd0a797dc79a9b97089653fc9379c59f03c69bbdde659377f6b35f4b194b26fe1b8e1b69f3dd671574168307f90b34f7a9c187762042ca47a0bc2251241b1919600fb288ecaef6bb20f935fc12a9509caefbda071bf0c03da0cae31e27e46668d60f7652a807a974c31aae72cfc0296e4f3542f8a69663
+  issuer: Hamster-Management-System
+  duration: 3600
 
 openapi:
   server-url: http://localhost:7071/user-service/api
