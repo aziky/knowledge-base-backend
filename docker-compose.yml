@@ -1,0 +1,92 @@
+#version: '3.8'
+#
+#services:
+#  consul:
+#    image: consul:1.14
+#    ports:
+#      - "8500:8500"
+#      - "8600:8600/udp"
+#      - "8600:8600/tcp"
+#    extra_hosts:
+#      - "host.docker.internal:host-gateway"
+#    command: >
+#      agent -dev -ui
+#      -client=0.0.0.0
+#      -bind=0.0.0.0
+#    volumes:
+#      - consul-data:/consul/data
+#    healthcheck:
+#      test: ["CMD", "consul", "members"]
+#      interval: 10s
+#      timeout: 3s
+#      retries: 10
+#      start_period: 10s
+#    networks:
+#      - kb-network
+#
+#  postgres-kb:
+#    image:  pgvector/pgvector:pg17
+#    container_name: postgres-kb
+#    ports:
+#      - "5432:5432"
+#    environment:
+#      POSTGRES_DB: kbdb
+#      POSTGRES_USER: kbuser
+#      POSTGRES_PASSWORD: kbpass
+#    volumes:
+#      - postgres-data:/var/lib/postgresql/data
+#    healthcheck:
+#      test: [ "CMD-SHELL", "pg_isready -U kbuser" ]
+#      interval: 5s
+#      timeout: 3s
+#      retries: 10
+#    networks:
+#      - kb-network
+#
+##  gateway-service:
+##    build:
+##      context: .
+##      dockerfile: ./gateway-service/Dockerfile
+##    image: kb-gateway-service:latest
+##    ports:
+##      - "7070:7070"
+##    depends_on:
+##      consul:
+##        condition: service_healthy
+##
+##  user-service:
+##    build:
+##      context: .
+##      dockerfile: ./user-service/Dockerfile
+##    image: kb-user-service:latest
+##    ports:
+##      - "7071:7071"
+##    depends_on:
+##      consul:
+##        condition: service_healthy
+##      gateway-service:
+##        condition: service_started
+##
+##  project-service:
+##    build:
+##      context: .
+##      dockerfile: ./project-service/Dockerfile
+##    image: kb-project-service:latest
+##    ports:
+##      - "7072:7072"
+##    depends_on:
+##      consul:
+##        condition: service_healthy
+##      gateway-service:
+##        condition: service_started
+#
+#
+#volumes:
+#  consul-data:
+#    driver: local
+#  postgres-data:
+#    driver: local
+#
+#networks:
+#  kb-network:
+#    driver: bridge
