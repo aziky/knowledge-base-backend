@@ -1,6 +1,8 @@
 package com.review.userservice.infrastructure.config;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.review.common.dto.response.ApiResponse;
+import com.review.common.shared.BaseException;
 import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +15,21 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.nio.file.AccessDeniedException;
+import java.util.Arrays;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BaseException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBaseException(BaseException ex) {
+        String exceptionName = ex.getClass().getSimpleName();
+
+        log.error("Exception: {} - Message: {}", exceptionName, ex.getMessage());
+        return ResponseEntity.status(ex.getHttpStatus()).body(
+                new ApiResponse<>(ex.getHttpStatus(), ex.getMessage(), null)
+        );
+    }
 
 
     @ExceptionHandler(EntityNotFoundException.class)
@@ -30,6 +43,19 @@ public class GlobalExceptionHandler {
         String errorMessage = ex.getBindingResult().getFieldError().getDefaultMessage();
         log.warn("Validation failed: {}", errorMessage);
         return ResponseEntity.badRequest().body(ApiResponse.badRequest(errorMessage));
+    }
+
+    @ExceptionHandler(InvalidFormatException.class)
+    public ResponseEntity<?> handleInvalidFormat(InvalidFormatException ex) {
+        if (ex.getTargetType() != null && ex.getTargetType().isEnum()) {
+            Object[] constants = ex.getTargetType().getEnumConstants();
+            String allowed = Arrays.toString(constants);
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.badRequest("Invalid value for field '" + ex.getPath().get(0).getFieldName() +
+                            "'. Allowed values: " + allowed));
+        }
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(ex.getMessage()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

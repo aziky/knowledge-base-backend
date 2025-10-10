@@ -1,5 +1,6 @@
 package com.review.userservice.api.dto.auth;
 
+import com.review.common.enumration.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,5 +21,5 @@ public record RegisterReq(
 
     @NotBlank
     @Size(max = 50)
-    String role
+    Role role
 ) {}

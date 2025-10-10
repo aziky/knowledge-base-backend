@@ -1,13 +1,14 @@
 package com.review.userservice.application.service.impl;
 
 import com.review.common.dto.response.ApiResponse;
+import com.review.common.shared.ApplicationException;
 import com.review.userservice.api.dto.auth.LoginReq;
 import com.review.userservice.api.dto.auth.LoginRes;
 import com.review.userservice.api.dto.auth.RegisterReq;
 import com.review.userservice.api.dto.auth.RegisterRes;
 import com.review.userservice.application.service.AuthService;
-import com.review.userservice.domain.entity.User;
-import com.review.userservice.domain.repository.UserRepository;
+import com.review.userservice.infrastructure.config.domain.entity.User;
+import com.review.userservice.infrastructure.config.domain.repository.UserRepository;
 import com.review.userservice.shared.utils.JwtUtil;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -42,14 +43,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ApiResponse<RegisterRes> register(RegisterReq request) {
         log.info("Registering new user with email {}", request.email());
-        if (userRepository.findByEmailAndIsActiveTrue(request.email()).isPresent()) {
-            throw new IllegalArgumentException("Email already exists");
+        if (userRepository.findByEmail(request.email()).isPresent()) {
+            throw new ApplicationException.DuplicateInformation("Email is already in use");
         }
         User user = new User();
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
-        user.setRole(request.role());
+        user.setRole(request.role().name());
         user.setIsActive(true);
         user.setEmailVerified(false);
         userRepository.save(user);
