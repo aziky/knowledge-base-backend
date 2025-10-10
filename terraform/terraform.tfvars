@@ -19,9 +19,10 @@ email_queue_message_retention   = 1209600  # 14 days for email processing
 db_identifier     = "knowledge-base-db"
 db_name          = "knowledge_base"
 db_username      = "postgres"
-db_password      = "your-secure-password-123"  # Change this!
+db_password      = "mypassword"  # Change this!
 db_instance_class = "db.t3.micro"
 allocated_storage = 20
+publicly_accessible = true
 
 # Tags
 additional_tags = {

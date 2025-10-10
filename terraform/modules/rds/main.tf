@@ -4,7 +4,7 @@ resource "aws_db_instance" "this" {
   
   # Engine configuration
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15.7"
   instance_class = var.db_instance_class
   
   # Database configuration
@@ -38,7 +38,7 @@ resource "aws_db_instance" "this" {
   performance_insights_retention_period = 7
   
   # Monitoring
-  monitoring_interval = 60
+  monitoring_interval = 0
   enabled_cloudwatch_logs_exports = ["postgresql"]
   
   tags = merge({
@@ -78,13 +78,13 @@ resource "aws_security_group" "rds" {
   description = "Security group for RDS PostgreSQL instance"
   vpc_id      = data.aws_vpc.default.id
 
-  # Cho phép PostgreSQL traffic từ VPC
+  # Cho phép PostgreSQL traffic từ your specific IPs
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block]
-    description = "PostgreSQL access from VPC"
+    cidr_blocks = ["103.199.68.69/32", "103.199.55.71/32"]
+    description = "PostgreSQL access from your IPs only"
   }
 
   # Cho phép tất cả outbound traffic
