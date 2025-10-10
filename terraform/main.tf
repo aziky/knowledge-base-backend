@@ -57,6 +57,7 @@ module "rds_postgres" {
   db_password      = var.db_password
   db_instance_class = var.db_instance_class
   allocated_storage = var.allocated_storage
+  publicly_accessible = var.publicly_accessible
   
   tags = merge(var.additional_tags, {
     Purpose = "Knowledge Base Database"

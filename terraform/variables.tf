@@ -93,6 +93,12 @@ variable "allocated_storage" {
   default     = 20
 }
 
+variable "publicly_accessible" {
+  description = "Có cho phép truy cập public không"
+  type        = bool
+  default     = false
+}
+
 # Common Tags
 variable "additional_tags" {
   description = "Tags bổ sung cho resources"
