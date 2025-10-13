@@ -79,7 +79,8 @@ public class AuthServiceImpl implements AuthService {
             log.info("Sending email verification to {}", user.getEmail());
             String token = UUID.randomUUID().toString();
             Map<String, String> payload = new HashMap<>();
-            payload.put("verificationUrl", hostProperties.backendHost() + hostProperties.handleVerificationUrl() + "/" + token);
+            payload.put("userName", user.getFullName());
+            payload.put("verificationLink", hostProperties.backendHost() + hostProperties.handleVerificationUrl() + "/" + token);
 
             NotificationMessage message = NotificationMessage.builder()
                     .to(user.getEmail())
