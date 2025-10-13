@@ -3,7 +3,7 @@ package com.review.userservice.api.controller;
 
 import com.review.userservice.api.dto.auth.LoginReq;
 import com.review.userservice.api.dto.auth.RegisterReq;
-import com.review.userservice.application.service.AuthService;
+import com.review.userservice.application.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

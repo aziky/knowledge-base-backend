@@ -1,4 +1,4 @@
-package com.review.userservice.infrastructure.config.domain.entity;
+package com.review.userservice.domain.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;

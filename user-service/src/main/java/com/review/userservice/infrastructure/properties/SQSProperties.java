@@ -1,4 +1,10 @@
 package com.review.userservice.infrastructure.properties;
 
-public class SQSProperties {
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@ConfigurationProperties(prefix = "spring.cloud.aws.sqs")
+public record SQSProperties(
+        String region,
+        String emailQueue
+) {
 }

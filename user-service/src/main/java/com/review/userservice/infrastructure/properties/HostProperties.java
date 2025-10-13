@@ -1,4 +1,10 @@
 package com.review.userservice.infrastructure.properties;
 
-public class HostProperties {
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@ConfigurationProperties(prefix = "host")
+public record HostProperties(
+        String backendHost,
+        String handleVerificationUrl
+) {
 }

@@ -6,7 +6,7 @@ import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.review.userservice.infrastructure.config.domain.entity.User;
+import com.review.userservice.domain.entity.User;
 import com.review.userservice.infrastructure.properties.JwtProperties;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
