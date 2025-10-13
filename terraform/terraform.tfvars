@@ -24,6 +24,11 @@ db_instance_class = "db.t3.micro"
 allocated_storage = 20
 publicly_accessible = true
 
+# SES Configuration
+ses_name_prefix      = "knowledge-base-ses"
+ses_email_addresses  = ["hamster@nls.io.vn"]  # Your email for sending
+ses_create_smtp_user = true  # Enable SMTP user creation
+
 # Tags
 additional_tags = {
   Owner = "Personal"

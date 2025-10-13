@@ -21,7 +21,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        default_schema: project
+        default_schema: kb_project
 
   cloud:
     consul:

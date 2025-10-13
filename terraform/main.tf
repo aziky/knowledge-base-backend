@@ -85,3 +85,17 @@ resource "aws_sqs_queue_policy" "s3_to_sqs_policy" {
     ]
   })
 }
+
+# 📧 SES Module
+module "ses_service" {
+  source = "./modules/ses"
+  
+  name_prefix         = var.ses_name_prefix
+  email_addresses     = var.ses_email_addresses
+  create_smtp_user    = var.ses_create_smtp_user
+  ses_region         = var.aws_region
+  
+  tags = merge(var.additional_tags, {
+    Purpose = "Email Service"
+  })
+}
