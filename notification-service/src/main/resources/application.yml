@@ -1,0 +1,42 @@
+server:
+  port: 7073
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: notification-service
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST}:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: kb_notification
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      #      s3:
+      #        bucket: hamster-application
+      sqs:
+        region: ${AWS_REGION}
+        email-queue: ${AWS_SQS_EMAIL_QUEUE}
+      ses:
+        region: ${AWS_REGION}
+        sender: ${AWS_SES_SENDER_EMAIL}
+
+
+host:
+  backend-host: http://localhost:7071/api
+  handle-verification-url: /auth/verify-account

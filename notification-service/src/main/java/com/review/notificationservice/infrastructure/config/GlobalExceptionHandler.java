@@ -1,0 +1,85 @@
+package com.review.notificationservice.infrastructure.config;
+
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.review.common.dto.response.ApiResponse;
+import com.review.common.shared.BaseException;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.nio.file.AccessDeniedException;
+import java.util.Arrays;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BaseException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBaseException(BaseException ex) {
+        String exceptionName = ex.getClass().getSimpleName();
+
+        log.error("Exception: {} - Message: {}", exceptionName, ex.getMessage());
+        return ResponseEntity.status(ex.getHttpStatus()).body(
+                new ApiResponse<>(ex.getHttpStatus(), ex.getMessage(), null)
+        );
+    }
+
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException ex) {
+        log.error("Entity not found: {}", ex.getMessage());
+        return ResponseEntity.status(404).body(ApiResponse.notFound(ex.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Object>> handleValidationException(MethodArgumentNotValidException ex) {
+        String errorMessage = ex.getBindingResult().getFieldError().getDefaultMessage();
+        log.warn("Validation failed: {}", errorMessage);
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(errorMessage));
+    }
+
+    @ExceptionHandler(InvalidFormatException.class)
+    public ResponseEntity<?> handleInvalidFormat(InvalidFormatException ex) {
+        if (ex.getTargetType() != null && ex.getTargetType().isEnum()) {
+            Object[] constants = ex.getTargetType().getEnumConstants();
+            String allowed = Arrays.toString(constants);
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.badRequest("Invalid value for field '" + ex.getPath().get(0).getFieldName() +
+                            "'. Allowed values: " + allowed));
+        }
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(ex.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadRequest(HttpMessageNotReadableException ex) {
+        log.warn("Invalid request format: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest("Malformed JSON or invalid request body"));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Object>> handleMissingParam(MissingServletRequestParameterException ex) {
+        String message = String.format("Missing request parameter: %s", ex.getParameterName());
+        log.warn(message);
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(message));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return ResponseEntity.status(401).body(ApiResponse.unauthorized("You are not authorized to perform this action"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Object>> handleGenericException(Exception ex) {
+        log.error("Unhandled exception: ", ex);
+        return ResponseEntity.status(500).body(ApiResponse.internalError());
+    }
+
+}
