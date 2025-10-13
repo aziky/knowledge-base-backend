@@ -100,3 +100,36 @@ output "db_security_group_id" {
   description = "Security group ID cho RDS"
   value       = module.rds_postgres.db_security_group_id
 }
+
+# SES Outputs
+output "ses_email_identities" {
+  description = "Map of verified email identities"
+  value       = module.ses_service.email_identities
+}
+
+output "ses_configuration_set_name" {
+  description = "Name of the SES configuration set"
+  value       = module.ses_service.configuration_set_name
+}
+
+output "ses_smtp_server" {
+  description = "SES SMTP server endpoint"
+  value       = module.ses_service.smtp_server
+}
+
+output "ses_smtp_port" {
+  description = "SES SMTP port"
+  value       = module.ses_service.smtp_port
+}
+
+output "ses_smtp_username" {
+  description = "SMTP username (IAM access key ID)"
+  value       = module.ses_service.smtp_username
+  sensitive   = true
+}
+
+output "ses_smtp_password" {
+  description = "SMTP password (IAM secret access key)"
+  value       = module.ses_service.smtp_password
+  sensitive   = true
+}

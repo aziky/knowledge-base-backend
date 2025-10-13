@@ -22,19 +22,18 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        default_schema: user
+        default_schema: kb_user
   cloud:
     aws:
-      region:
-        static: ap-southeast-1
       credentials:
         access-key: ${AWS_ACCESS_KEY_ID}
         secret-key: ${AWS_SECRET_ACCESS_KEY}
 #      s3:
 #        bucket: hamster-application
       sqs:
-        region: ap-southeast-1
+        region: ${AWS_REGION}
         email-queue: ${AWS_SQS_EMAIL_QUEUE}
+
 
 
 

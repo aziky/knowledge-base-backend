@@ -99,6 +99,25 @@ variable "publicly_accessible" {
   default     = false
 }
 
+# SES Variables
+variable "ses_name_prefix" {
+  description = "Prefix for SES resource names"
+  type        = string
+  default     = "knowledge-base-ses"
+}
+
+variable "ses_email_addresses" {
+  description = "List of email addresses to verify for SES"
+  type        = list(string)
+  default     = []
+}
+
+variable "ses_create_smtp_user" {
+  description = "Whether to create an IAM user for SMTP authentication"
+  type        = bool
+  default     = false
+}
+
 # Common Tags
 variable "additional_tags" {
   description = "Tags bổ sung cho resources"
