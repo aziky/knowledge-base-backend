@@ -1,6 +1,6 @@
-package com.review.userservice.infrastructure.config.domain.repository;
+package com.review.userservice.domain.repository;
 
-import com.review.userservice.infrastructure.config.domain.entity.User;
+import com.review.userservice.domain.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

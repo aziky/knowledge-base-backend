@@ -1,4 +1,10 @@
 package com.review.userservice.infrastructure.properties;
 
-public class AWSProperties {
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@ConfigurationProperties(prefix = "spring.cloud.aws.credentials")
+public record AWSProperties(
+        String accessKey,
+        String secretKey
+) {
 }

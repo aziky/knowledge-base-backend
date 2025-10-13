@@ -4,13 +4,14 @@ server:
     context-path: /api
 
 spring:
+
   application:
     name: user-service
 
   datasource:
-    url: jdbc:postgresql://knowledge-base-db.c30ekiwk6ooq.ap-southeast-1.rds.amazonaws.com:5432/knowledge_base
-    username: postgres
-    password: mypassword
+    url: jdbc:postgresql://${POSTGRES_HOST}:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,6 +23,19 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         default_schema: user
+  cloud:
+    aws:
+      region:
+        static: ap-southeast-1
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+#      s3:
+#        bucket: hamster-application
+      sqs:
+        region: ap-southeast-1
+        email-queue: ${AWS_SQS_EMAIL_QUEUE}
+
 
 
 jwt:
@@ -42,3 +56,8 @@ springdoc:
     display-request-duration: true
     default-model-expand-depth: 10
     display-operation-id: true
+
+
+host:
+  backend-host: http://localhost:7071/api
+  handle-verification-url: /auth/verify-account

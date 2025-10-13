@@ -1,4 +1,4 @@
-package com.review.userservice.application.service;
+package com.review.userservice.application;
 
 import com.review.common.dto.response.ApiResponse;
 import com.review.userservice.api.dto.auth.LoginReq;
