@@ -36,7 +36,7 @@ public class Folder {
     private UUID projectId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_folder_id")
+    @JoinColumn(name = "parent_folder_id", insertable = false, updatable = false)
     private Folder parentFolder;
 
     @Column(name = "parent_folder_id")
