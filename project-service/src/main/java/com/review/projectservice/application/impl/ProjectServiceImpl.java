@@ -1,0 +1,66 @@
+package com.review.projectservice.application.impl;
+
+import com.review.common.dto.response.ApiResponse;
+import com.review.common.enumration.ProjectRole;
+import com.review.common.enumration.ProjectStatus;
+import com.review.projectservice.api.dto.project.CreateProjectReq;
+import com.review.projectservice.api.dto.project.GetProjectRes;
+import com.review.projectservice.application.ProjectService;
+import com.review.projectservice.domain.entity.Project;
+import com.review.projectservice.domain.entity.ProjectMember;
+import com.review.projectservice.domain.repository.ProjectMemberRepository;
+import com.review.projectservice.domain.repository.ProjectRepository;
+import com.review.projectservice.shared.PageResponse;
+import com.review.projectservice.shared.mapper.ProjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class ProjectServiceImpl implements ProjectService {
+
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectMapper projectMapper;
+
+    @Override
+    @Transactional
+    public ApiResponse<?> createProject(CreateProjectReq request) {
+        log.info("Handle create project request: {}", request);
+
+        boolean existingProjectName = projectRepository.existsByName(request.name());
+        if (existingProjectName) throw new IllegalArgumentException("Project name already exists");
+
+        Project project =  Project.builder()
+                .name(request.name())
+                .description(request.description())
+                .status(ProjectStatus.ACTIVE.name())
+                .build();
+        projectRepository.saveAndFlush(project);
+        log.info("Saving project successfully");
+
+        ProjectMember projectMember = new ProjectMember();
+        projectMember.setProjectId(project.getId());
+        projectMember.setUserId(UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
+        projectMember.setProjectRole(ProjectRole.OWNER.name());
+        projectMemberRepository.save(projectMember);
+        log.info("Saving project member successfully");
+
+        return ApiResponse.success("Project created successfully");
+    }
+
+    @Override
+    public ApiResponse<?> getAllProject(Pageable pageable) {
+        log.info("Start get all projects with");
+        Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
+        Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
+        return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
+    }
+}

@@ -32,6 +32,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiResponse.badRequest(errorMessage));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("Illegal argument failed: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(ex.getMessage()));
+    }
+
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadRequest(HttpMessageNotReadableException ex) {
         log.warn("Invalid request format: {}", ex.getMessage());

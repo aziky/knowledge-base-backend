@@ -12,4 +12,6 @@ public interface AuthService {
 
     ApiResponse<RegisterRes> register(RegisterReq registerReq);
 
+    ApiResponse<Void> verifyAccount(String token);
+
 }

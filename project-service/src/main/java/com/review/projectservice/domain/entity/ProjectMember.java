@@ -3,6 +3,7 @@ package com.review.projectservice.domain.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,6 @@ import java.util.UUID;
 @Setter
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-@Data
 @Table(name = "project_members", schema = "kb_project")
 public class ProjectMember {
     @Id
@@ -40,9 +40,6 @@ public class ProjectMember {
     @Size(max = 50)
     @Column(name = "project_role", length = 50)
     private String projectRole;
-
-    @Column(name = "is_creator")
-    private Boolean isCreator;
 
     @CreationTimestamp
     @Column(name = "joined_at")

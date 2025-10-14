@@ -1,6 +1,6 @@
 #version: '3.8'
 #
-#services:
+services:
 #  consul:
 #    image: consul:1.14
 #    ports:
@@ -24,24 +24,23 @@
 #    networks:
 #      - kb-network
 #
-#  postgres-kb:
-#    image:  pgvector/pgvector:pg17
-#    container_name: postgres-kb
-#    ports:
-#      - "5432:5432"
-#    environment:
-#      POSTGRES_DB: kbdb
-#      POSTGRES_USER: kbuser
-#      POSTGRES_PASSWORD: kbpass
-#    volumes:
-#      - postgres-data:/var/lib/postgresql/data
-#    healthcheck:
-#      test: [ "CMD-SHELL", "pg_isready -U kbuser" ]
-#      interval: 5s
-#      timeout: 3s
-#      retries: 10
-#    networks:
-#      - kb-network
+
+    redis:
+      image: redis:7-alpine
+      container_name: kb_redis
+      ports:
+        - "6379:6379"
+      volumes:
+        - redis_data:/data
+      healthcheck:
+        test: [ "CMD", "redis-cli", "ping" ]
+        interval: 5s
+        timeout: 3s
+        retries: 5
+        start_period: 10s
+      networks:
+        - kb_network
+
 #
 ##  gateway-service:
 ##    build:
@@ -81,12 +80,12 @@
 ##        condition: service_started
 #
 #
-#volumes:
-#  consul-data:
-#    driver: local
-#  postgres-data:
-#    driver: local
+volumes:
+  redis_data:
+    name: kb_redis_volume
+    driver: local
+
 #
-#networks:
-#  kb-network:
-#    driver: bridge
+networks:
+  kb_network:
+    driver: bridge

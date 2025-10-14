@@ -3,9 +3,7 @@ package com.review.projectservice.domain.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -13,12 +11,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Entity
 @Getter
 @Setter
-@Entity
-@Data
+@Builder
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "projects", schema = "kb_project")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Project {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,7 +27,7 @@ public class Project {
 
     @Size(max = 255)
     @NotNull
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, unique = true)
     private String name;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
@@ -45,9 +45,6 @@ public class Project {
 
     @Column(name = "lock_reason", length = Integer.MAX_VALUE)
     private String lockReason;
-
-    @Column(name = "can_restore")
-    private Boolean canRestore;
 
     @CreationTimestamp
     @Column(name = "created_at")
