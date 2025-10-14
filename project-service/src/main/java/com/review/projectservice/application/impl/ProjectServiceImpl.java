@@ -49,7 +49,7 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectMember projectMember = new ProjectMember();
         projectMember.setProjectId(project.getId());
         projectMember.setUserId(UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
-        projectMember.setProjectRole(ProjectRole.OWNER.name());
+        projectMember.setProjectRole(ProjectRole.CREATOR.name());
         projectMemberRepository.save(projectMember);
         log.info("Saving project member successfully");
 
@@ -61,6 +61,7 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("Start get all projects with");
         Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
         Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
+
         return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
     }
 }

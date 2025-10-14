@@ -1,7 +1,7 @@
 package com.review.common.enumration;
 
 public enum ProjectRole {
-    ADMIN,
+    CREATOR,
     OWNER,
     MEMBER
 }
