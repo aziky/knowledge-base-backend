@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -21,18 +22,22 @@ public class EnhancedAuthContextFeignInterceptor implements RequestInterceptor {
 
     @Override
     public void apply(RequestTemplate template) {
-        CustomUserDetails userDetails = SecurityUtil.getCurrentUser();
+//        CustomUserDetails userDetails = SecurityUtil.getCurrentUser();
+
+        CustomUserDetails userDetails = new CustomUserDetails(
+                UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
+                "","", null);
 
         template.header(CustomHeader.X_USER_ID, userDetails.getUserId().toString());
         template.header(CustomHeader.X_EMAIL, userDetails.getUsername());
 
         Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
-        if (authorities != null && !authorities.isEmpty()) {
-            String roles = authorities.stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .collect(Collectors.joining(","));
-            template.header(CustomHeader.X_ROLES, roles);
-        }
+//        if (authorities != null && !authorities.isEmpty()) {
+//            String roles = authorities.stream()
+//                    .map(GrantedAuthority::getAuthority)
+//                    .collect(Collectors.joining(","));
+//            template.header(CustomHeader.X_ROLES, roles);
+//        }
         log.info("Added auth headers to Feign request - UserId: {}, Email: {}",
                 userDetails.getUserId(), userDetails.getUsername());
     }
