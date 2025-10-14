@@ -2,7 +2,7 @@ package com.review.projectservice.api.dto.project;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record CreateProjectRes(
+public record CreateProjectReq(
         @NotBlank
         String name,
         String description
