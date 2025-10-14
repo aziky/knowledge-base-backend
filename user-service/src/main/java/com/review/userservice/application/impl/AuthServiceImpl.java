@@ -45,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ApiResponse<LoginRes> login(LoginReq request) {
         log.info("Handle login request with email {}", request.email());
-        User user = userRepository.findByEmailAndIsActiveTrue(request.email())
+        User user = userRepository.findByEmailAndIsActiveTrueAndEmailVerifiedTrue(request.email())
                 .orElseThrow(() -> new EntityNotFoundException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -83,11 +83,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public ApiResponse<Void> verifyAccount(String token) {
+        log.info("Verifying account with token {}", token);
         User user = redisService.get("verified_token:" + token, User.class);
-        if (user == null) {
-            throw new RedisCommandTimeoutException("Token is invalid or expired");
-        }
+        if (user == null) throw new RedisCommandTimeoutException("Token is invalid or expired");
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
         return ApiResponse.success(null, "Verify account successfully");
     }
 
