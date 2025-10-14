@@ -22,6 +22,16 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         default_schema: kb_project
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      #      s3:
+      #        bucket: hamster-application
+      sqs:
+        region: ${AWS_REGION}
+        email-queue: ${AWS_SQS_EMAIL_QUEUE}
 
 #  cloud:
 #    consul:
