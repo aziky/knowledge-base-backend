@@ -7,10 +7,7 @@ import com.review.userservice.application.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -30,6 +27,13 @@ public class AuthController {
     public ResponseEntity<?> register(@RequestBody RegisterReq request) {
         return ResponseEntity.ok(authService.register(request));
     }
+
+    @GetMapping("/verify-account/{token}")
+    public ResponseEntity<?> verifyAccount(@PathVariable String token) {
+        return ResponseEntity.ok(authService.verifyAccount(token));
+    }
+
+
 
 
 }

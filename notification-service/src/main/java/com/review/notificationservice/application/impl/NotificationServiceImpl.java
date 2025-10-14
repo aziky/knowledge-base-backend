@@ -58,15 +58,23 @@ public class NotificationServiceImpl implements NotificationService {
 
     private void sendEmailViaSes(NotificationMessage message) {
         try {
+            log.info("Preparing to send email via SES to: {}", message.to());
+            log.info("Sender email: {}", sesProperties.sender());
             SendEmailRequest emailRequest = SendEmailRequest.builder()
                     .source(sesProperties.sender())
                     .destination(Destination.builder()
                             .toAddresses(message.to())
                             .build())
                     .message(Message.builder()
-                            .subject(Content.builder().data(message.payload().get("subject")).build())
+                            .subject(Content.builder()
+                                    .data(message.payload().get("subject"))
+                                    .charset("UTF-8")
+                                    .build())
                             .body(Body.builder()
-                                    .text(Content.builder().data(message.payload().get("body")).build())
+                                    .html(Content.builder()
+                                            .data(message.payload().get("body"))
+                                            .charset("UTF-8")
+                                            .build())
                                     .build())
                             .build())
                     .build();

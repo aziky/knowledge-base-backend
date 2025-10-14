@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.shared.BaseException;
 import feign.FeignException;
+import io.lettuce.core.RedisCommandTimeoutException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException ex) {
         log.error("Entity not found: {}", ex.getMessage());
         return ResponseEntity.status(404).body(ApiResponse.notFound(ex.getMessage()));
+    }
+
+    @ExceptionHandler(RedisCommandTimeoutException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTimeoutRedis(EntityNotFoundException ex) {
+        log.error("Token is expired: {}", ex.getMessage());
+        return ResponseEntity.status(400).body(ApiResponse.badRequest(ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

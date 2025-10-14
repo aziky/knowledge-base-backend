@@ -26,7 +26,7 @@ publicly_accessible = true
 
 # SES Configuration
 ses_name_prefix      = "knowledge-base-ses"
-ses_email_addresses  = ["hamster@nls.io.vn"]  # Your email for sending
+ses_email_addresses  = ["pcm230304@gmail.com"]  # Your email for sending
 ses_create_smtp_user = true  # Enable SMTP user creation
 
 # Tags
