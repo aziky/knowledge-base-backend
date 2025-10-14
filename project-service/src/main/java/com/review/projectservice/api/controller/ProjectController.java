@@ -1,5 +1,6 @@
 package com.review.projectservice.api.controller;
 
+import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.application.ProjectService;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @RestController
@@ -35,6 +38,14 @@ public class ProjectController {
 
         Pageable pageable = PageRequest.of(page, size, sort);
         return ResponseEntity.ok(projectService.getAllProject(pageable));
+    }
+
+    @PostMapping("/{projectId}/invite")
+    public ResponseEntity<?> inviteUserToProject(
+            @PathVariable UUID projectId,
+            @RequestBody CreateInvitationReq request
+            ) {
+        return ResponseEntity.ok(projectService.sendInvitation(projectId, request));
     }
 
 }
