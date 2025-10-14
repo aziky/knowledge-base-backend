@@ -61,6 +61,7 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("Start get all projects with");
         Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
         Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
+
         return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
     }
 }
