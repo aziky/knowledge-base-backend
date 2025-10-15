@@ -75,5 +75,5 @@ springdoc:
 
 
 host:
-  backend-host: http://localhost:7071/api
+  backend-host: http://localhost:7070/user-service/api
   handle-verification-url: /auth/verify-account

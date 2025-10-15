@@ -80,5 +80,5 @@ springdoc:
 #    prefer-ip-address: true
 
 host:
-  backend-host: http://localhost:7071/api
+  backend-host: http://localhost:7070/project-service/api
   verified-invitation: /project/verified-invitation
