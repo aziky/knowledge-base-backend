@@ -1,20 +1,26 @@
 package com.review.projectservice.application.impl;
 
 import com.review.common.dto.request.NotificationMessage;
+import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
 import com.review.common.enumration.Template;
+import com.review.common.shared.CustomUserDetails;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.GetProjectRes;
 import com.review.projectservice.application.ProjectService;
+import com.review.projectservice.application.SQSService;
 import com.review.projectservice.domain.entity.Project;
 import com.review.projectservice.domain.entity.ProjectMember;
 import com.review.projectservice.domain.repository.ProjectMemberRepository;
 import com.review.projectservice.domain.repository.ProjectRepository;
+import com.review.projectservice.infrastructure.external.UserClient;
 import com.review.projectservice.infrastructure.properties.HostProperties;
+import com.review.projectservice.infrastructure.properties.SQSProperties;
 import com.review.projectservice.shared.PageResponse;
+import com.review.projectservice.shared.SecurityUtil;
 import com.review.projectservice.shared.mapper.ProjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +30,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +45,10 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectMapper projectMapper;
     private final HostProperties hostProperties;
+    private final SQSService sqsService;
+    private final SQSProperties sqsProperties;
+    private final UserClient userClient;
+    
 
     @Override
     @Transactional
@@ -76,7 +88,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ApiResponse<Void> sendInvitation(UUID projectId, CreateInvitationReq request) {
         log.info("Start send invitation for projectId: {} with request: {}", projectId, request);
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> EntityNotFoundException("Project not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
         sendInvitationEmail(project, request);
         return ApiResponse.success("Invitation sent successfully");
     }
@@ -87,9 +99,20 @@ public class ProjectServiceImpl implements ProjectService {
             log.info("Sending email verification to {}", request.email());
             String token = UUID.randomUUID().toString();
 
+            log.info("Start calling user-service");
+            GetUserRes user = userClient.getUserById(request.userId()).getBody().data();
+            CustomUserDetails currentUser = SecurityUtil.getCurrentUser();
+
             Map<String, String> payload = new HashMap<>();
-            payload.put("userName", request.fullName());
-            payload.put("verificationLink", hostProperties.backendHost() + hostProperties.verifiedInvitation() + "/" + token);
+            payload.put("inviteeName", request.fullName());
+            payload.put("inviterName", currentUser.getFullName());
+            payload.put("inviterEmail", currentUser.getUsername());
+            payload.put("projectName", project.getName());
+            payload.put("userRole", ProjectRole.MEMBER.name());
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            payload.put("invitationDate", LocalDateTime.now().format(formatter));
+            payload.put("projectDescription", project.getDescription());
+            payload.put("acceptInvitationLink", hostProperties.backendHost() + hostProperties.verifiedInvitation() + "/" + token);
 
             NotificationMessage message = NotificationMessage.builder()
                     .to(request.email())
@@ -98,8 +121,9 @@ public class ProjectServiceImpl implements ProjectService {
                     .build();
 
             sqsService.sendMessage(sqsProperties.emailQueue(), message);
+            log.info("Send into email queue successfully");
         } catch (Exception e) {
-            log.info("Failed to send email verification to {} cause by {}", user.getEmail(), e.getMessage());
+            log.info("Failed to send email verification to {} cause by {}", request.email(), e.getMessage());
             throw new RuntimeException("Failed to send email verification", e);
         }
     }

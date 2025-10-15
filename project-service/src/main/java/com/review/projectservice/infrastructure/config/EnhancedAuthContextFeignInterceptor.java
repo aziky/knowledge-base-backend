@@ -22,22 +22,18 @@ public class EnhancedAuthContextFeignInterceptor implements RequestInterceptor {
 
     @Override
     public void apply(RequestTemplate template) {
-//        CustomUserDetails userDetails = SecurityUtil.getCurrentUser();
-
-        CustomUserDetails userDetails = new CustomUserDetails(
-                UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
-                "","", null);
+        CustomUserDetails userDetails = SecurityUtil.getCurrentUser();
 
         template.header(CustomHeader.X_USER_ID, userDetails.getUserId().toString());
         template.header(CustomHeader.X_EMAIL, userDetails.getUsername());
 
         Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
-//        if (authorities != null && !authorities.isEmpty()) {
-//            String roles = authorities.stream()
-//                    .map(GrantedAuthority::getAuthority)
-//                    .collect(Collectors.joining(","));
-//            template.header(CustomHeader.X_ROLES, roles);
-//        }
+        if (authorities != null && !authorities.isEmpty()) {
+            String roles = authorities.stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.joining(","));
+            template.header(CustomHeader.X_ROLES, roles);
+        }
         log.info("Added auth headers to Feign request - UserId: {}, Email: {}",
                 userDetails.getUserId(), userDetails.getUsername());
     }

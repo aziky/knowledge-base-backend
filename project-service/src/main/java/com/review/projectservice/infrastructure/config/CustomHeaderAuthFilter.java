@@ -29,10 +29,11 @@ public class CustomHeaderAuthFilter extends OncePerRequestFilter {
         String userId = request.getHeader(CustomHeader.X_USER_ID);
         String role = request.getHeader(CustomHeader.X_ROLES);
         String email = request.getHeader(CustomHeader.X_EMAIL);
+        String fullName = request.getHeader(CustomHeader.X_FULL_NAME);
         if (userId != null && role != null) {
 
             List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
-            CustomUserDetails userDetails = new CustomUserDetails(UUID.fromString(userId) ,email, "", authorities);
+            CustomUserDetails userDetails = new CustomUserDetails(UUID.fromString(userId) ,email, "", fullName, authorities);
 
             Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
