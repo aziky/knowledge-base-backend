@@ -5,6 +5,7 @@ import java.util.UUID;
 public record CreateInvitationReq (
         UUID userId,
         String fullName,
-        String email
+        String email,
+        String role
 ) {
 }

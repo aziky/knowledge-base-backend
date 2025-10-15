@@ -128,7 +128,7 @@ public class ProjectServiceImpl implements ProjectService {
             payload.put("inviterName", currentUser.getFullName());
             payload.put("inviterEmail", currentUser.getUsername());
             payload.put("projectName", project.getName());
-            payload.put("userRole", ProjectRole.MEMBER.name());
+            payload.put("userRole", ProjectRole.valueOf(request.role()).name());
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
             payload.put("invitationDate", LocalDateTime.now().format(formatter));
             payload.put("projectDescription", project.getDescription());
