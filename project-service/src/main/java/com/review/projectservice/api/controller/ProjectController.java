@@ -61,4 +61,9 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.removeUserFromProject(projectId, userId));
     }
 
+    @GetMapping("/{projectId}/details")
+    public ResponseEntity<?> getProjectDetails(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.getProjectDetails(projectId));
+    }
+
 }

@@ -19,4 +19,6 @@ public interface ProjectService {
 
     String verifiedInvitationToken(String token);
 
+    ApiResponse<?> getProjectDetails(UUID projectId);
+
 }

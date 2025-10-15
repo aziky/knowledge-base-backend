@@ -9,13 +9,13 @@ import com.review.common.shared.CustomUserDetails;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.GetProjectRes;
+import com.review.projectservice.api.dto.project.ProjectDetailRes;
 import com.review.projectservice.application.ProjectService;
 import com.review.projectservice.application.RedisService;
 import com.review.projectservice.application.SQSService;
 import com.review.projectservice.domain.entity.Project;
 import com.review.projectservice.domain.entity.ProjectMember;
-import com.review.projectservice.domain.repository.ProjectMemberRepository;
-import com.review.projectservice.domain.repository.ProjectRepository;
+import com.review.projectservice.domain.repository.*;
 import com.review.projectservice.infrastructure.external.UserClient;
 import com.review.projectservice.infrastructure.properties.HostProperties;
 import com.review.projectservice.infrastructure.properties.SQSProperties;
@@ -50,6 +50,9 @@ public class ProjectServiceImpl implements ProjectService {
     private final SQSProperties sqsProperties;
     private final UserClient userClient;
     private final RedisService redisService;
+    private final DocumentRepository documentRepository;
+    private final FolderRepository folderRepository;
+    private final VideoRepository videoRepository;
     
 
     @Override
@@ -122,6 +125,50 @@ public class ProjectServiceImpl implements ProjectService {
         member.setRemovedAt(LocalDateTime.now());
         projectMemberRepository.save(member);
         return ApiResponse.success("User removed from project successfully");
+    }
+
+    @Override
+    public ApiResponse<?> getProjectDetails(UUID projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        var folders = folderRepository.findAllByProjectId(projectId).stream()
+                .map(f -> new ProjectDetailRes.FolderInfo(
+                        f.getId(),
+                        f.getName(),
+                        f.getCreatedAt()
+                ))
+                .toList();
+
+        var documents = documentRepository.findAllByProjectId(projectId).stream()
+                .map(d -> new ProjectDetailRes.DocumentInfo(
+                        d.getId(),
+                        d.getName(),
+                        d.getFileType(),
+                        d.getUploadedAt()
+                ))
+                .toList();
+
+        var videos = videoRepository.findAllByProjectId(projectId).stream()
+                .map(v -> new ProjectDetailRes.VideoInfo(
+                        v.getId(),
+                        v.getName(),
+                        v.getFileType(),
+                        v.getUploadedAt()
+                ))
+                .toList();
+
+        var response = new ProjectDetailRes(
+                project.getId(),
+                project.getName(),
+                project.getDescription(),
+                project.getCreatedAt(),
+                folders,
+                documents,
+                videos
+        );
+
+        return ApiResponse.success(response, "Project details fetched successfully");
     }
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {

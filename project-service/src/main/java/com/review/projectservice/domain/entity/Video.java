@@ -34,7 +34,7 @@ public class Video {
     @Column(name = "uploaded_by", nullable = false)
     private UUID uploadedBy;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", insertable = false, updatable = false)
     private Project project;
 
