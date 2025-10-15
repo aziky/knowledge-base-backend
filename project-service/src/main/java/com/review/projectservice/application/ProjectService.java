@@ -15,4 +15,6 @@ public interface ProjectService {
 
     ApiResponse<Void> sendInvitation(UUID projectId, CreateInvitationReq request);
 
+    String verifiedInvitationToken(String token);
+
 }
