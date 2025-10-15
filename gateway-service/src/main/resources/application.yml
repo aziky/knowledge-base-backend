@@ -18,6 +18,13 @@ spring:
               filters:
                 - StripPrefix=1
 
+            - id: project-service
+              uri: lb://project-service
+              predicates:
+                - Path=/project-service/**
+              filters:
+                - StripPrefix=1
+
 eureka:
   client:
     register-with-eureka: true
@@ -38,6 +45,10 @@ management:
     health:
       show-details: always
 
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+  issuer: ${JWT_ISSUER}
+  duration: ${JWT_DURATION}
 
 #springdoc:
 #  swagger-ui:

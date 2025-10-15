@@ -1,28 +1,29 @@
 package com.review.common.shared;
 
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.UUID;
 
+@Getter
 public class CustomUserDetails implements UserDetails {
 
     private final UUID userId;
     private final String username;
     private final String password;
+    private final String fullName;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public CustomUserDetails(UUID userId, String username, String password, Collection<? extends GrantedAuthority> authorities) {
+    public CustomUserDetails(UUID userId, String username, String password, String fullName, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.username = username;
         this.password = password;
+        this.fullName = fullName;
         this.authorities = authorities;
     }
 
-    public UUID getUserId() {
-        return userId;
-    }
 
     @Override public String getUsername() { return username; }
 
