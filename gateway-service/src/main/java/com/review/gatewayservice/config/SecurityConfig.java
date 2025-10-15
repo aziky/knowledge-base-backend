@@ -37,6 +37,7 @@ public class SecurityConfig {
 //            "/notification-service/api/v3/api-docs",
 //            "/recommendation-service/api/v3/api-docs",
             USER_PREFIX + "/auth/**",
+            PROJECT_PREFIX + "/project/verified-invitation/**",
     };
 
     private static final String[] USER_ENDPOINT = {

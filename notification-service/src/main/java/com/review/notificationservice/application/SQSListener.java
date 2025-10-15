@@ -23,17 +23,14 @@ public class SQSListener {
         NotificationMessage notificationMessage = null;
         try {
             notificationMessage = objectMapper.readValue(message, NotificationMessage.class);
+            notificationService.sendEmail(notificationMessage);
+
         } catch (JsonProcessingException e) {
+            log.info("Error when parse message from SQS cause by: {}", e.getMessage());
             throw new RuntimeException(e);
         }
-        handleVerifiedEmail(notificationMessage);
 
     }
 
-
-    private void handleVerifiedEmail(NotificationMessage message) {
-        log.info("Handle verified email");
-        notificationService.sendEmail(message);
-    }
 
 }

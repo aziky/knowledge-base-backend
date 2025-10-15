@@ -32,7 +32,7 @@ public class JwtUtil {
                     .issuer(jwtProperties.issuer())
                     .claim("email", user.getEmail())
                     .claim("role", user.getRole())
-                    .claim("fullname", user.getFullName())
+                    .claim("fullName", user.getFullName())
 //                    .claim("status", user)
                     .issueTime(new Date())
                     .expirationTime(new Date(System.currentTimeMillis() + jwtProperties.duration() * 1000))

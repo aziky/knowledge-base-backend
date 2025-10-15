@@ -1,7 +1,6 @@
 package com.review.projectservice.application.impl;
 
 import com.review.common.dto.request.NotificationMessage;
-import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
@@ -11,6 +10,7 @@ import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.GetProjectRes;
 import com.review.projectservice.application.ProjectService;
+import com.review.projectservice.application.RedisService;
 import com.review.projectservice.application.SQSService;
 import com.review.projectservice.domain.entity.Project;
 import com.review.projectservice.domain.entity.ProjectMember;
@@ -30,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final SQSService sqsService;
     private final SQSProperties sqsProperties;
     private final UserClient userClient;
+    private final RedisService redisService;
     
 
     @Override
@@ -93,6 +95,25 @@ public class ProjectServiceImpl implements ProjectService {
         return ApiResponse.success("Invitation sent successfully");
     }
 
+    @Override
+    public String verifiedInvitationToken(String token) {
+        log.info("Start verify invitation token");
+        Map<String, String> dataRedis = redisService.get("verified_invitation:" + token, Map.class);
+        if (dataRedis == null) {
+            throw new IllegalArgumentException("Invitation is expired");
+        }
+
+        ProjectMember projectMember = new ProjectMember();
+        projectMember.setProjectId(UUID.fromString(dataRedis.get("projectId")));
+        projectMember.setUserId(UUID.fromString(dataRedis.get("userId")));
+        projectMember.setProjectRole(ProjectRole.MEMBER.name());
+        projectMemberRepository.save(projectMember);
+
+        log.info("Verified invitation successfully");
+        redisService.delete("verified_invitation:" + token);
+        return hostProperties.frontendHost();
+    }
+
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {
         try {
@@ -100,7 +121,6 @@ public class ProjectServiceImpl implements ProjectService {
             String token = UUID.randomUUID().toString();
 
             log.info("Start calling user-service");
-            GetUserRes user = userClient.getUserById(request.userId()).getBody().data();
             CustomUserDetails currentUser = SecurityUtil.getCurrentUser();
 
             Map<String, String> payload = new HashMap<>();
@@ -114,10 +134,16 @@ public class ProjectServiceImpl implements ProjectService {
             payload.put("projectDescription", project.getDescription());
             payload.put("acceptInvitationLink", hostProperties.backendHost() + hostProperties.verifiedInvitation() + "/" + token);
 
+
+            Map<String, String> dataRedis = new HashMap<>();
+            dataRedis.put("projectId", project.getId().toString());
+            dataRedis.put("userId", request.userId().toString());
+            redisService.save("verified_invitation:" + token, dataRedis, Duration.ofDays(1));
+
             NotificationMessage message = NotificationMessage.builder()
                     .to(request.email())
                     .payload(payload)
-                    .type(Template.EMAIL_VERIFICATION.name())
+                    .type(Template.EMAIL_INVITATION.name())
                     .build();
 
             sqsService.sendMessage(sqsProperties.emailQueue(), message);
