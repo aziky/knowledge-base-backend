@@ -114,6 +114,15 @@ public class ProjectServiceImpl implements ProjectService {
         return hostProperties.frontendHost();
     }
 
+    @Override
+    @Transactional
+    public ApiResponse<Void> removeUserFromProject(UUID projectId, UUID userId) {
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Project member not found"));
+        member.setRemovedAt(LocalDateTime.now());
+        projectMemberRepository.save(member);
+        return ApiResponse.success("User removed from project successfully");
+    }
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {
         try {

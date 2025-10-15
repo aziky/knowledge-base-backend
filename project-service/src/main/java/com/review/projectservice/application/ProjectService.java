@@ -15,6 +15,8 @@ public interface ProjectService {
 
     ApiResponse<Void> sendInvitation(UUID projectId, CreateInvitationReq request);
 
+    ApiResponse<Void> removeUserFromProject(UUID projectId, UUID userId);
+
     String verifiedInvitationToken(String token);
 
 }
