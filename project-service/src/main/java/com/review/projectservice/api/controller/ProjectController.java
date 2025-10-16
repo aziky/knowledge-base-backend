@@ -1,10 +1,8 @@
 package com.review.projectservice.api.controller;
 
-import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.application.ProjectService;
-import com.review.projectservice.application.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +20,6 @@ import java.util.UUID;
 public class ProjectController {
 
     private final ProjectService projectService;
-    private final S3Service s3Service;
 
     @PostMapping()
     public ResponseEntity<?> createProject(@RequestBody CreateProjectReq request) {
@@ -72,9 +69,8 @@ public class ProjectController {
 
 
     @PostMapping("/{projectId}/upload")
-    public ResponseEntity<ApiResponse<?>> uploadFile(@PathVariable UUID projectId, @RequestParam MultipartFile file) {
-        s3Service.uploadFile(projectId, file);
-        return ResponseEntity.ok(ApiResponse.success("File uploaded successfully"));
+    public ResponseEntity<?> uploadFile(@PathVariable UUID projectId, @RequestParam MultipartFile file) {
+        return ResponseEntity.ok(projectService.uploadFile(projectId, file));
     }
 
 

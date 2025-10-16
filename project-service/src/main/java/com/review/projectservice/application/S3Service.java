@@ -6,5 +6,5 @@ import java.util.UUID;
 
 public interface S3Service {
 
-    void uploadFile(UUID projectId, MultipartFile file);
+    String uploadFile(UUID projectId, MultipartFile file);
 }

@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -31,12 +32,17 @@ public class Video {
     private UUID id;
 
     @NotNull
+    @CreatedBy
     @Column(name = "uploaded_by", nullable = false)
-    private UUID uploadedBy;
+    private String uploadedBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", insertable = false, updatable = false)
     private Project project;
+
+    @NotNull
+    @Column(name = "project_id", nullable = false)
+    private UUID projectId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id", insertable = false, updatable = false)

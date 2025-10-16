@@ -13,12 +13,15 @@ import com.review.projectservice.api.dto.project.ProjectDetailRes;
 import com.review.projectservice.application.ProjectService;
 import com.review.projectservice.application.RedisService;
 import com.review.projectservice.application.SQSService;
+import com.review.projectservice.domain.entity.Document;
 import com.review.projectservice.domain.entity.Project;
 import com.review.projectservice.domain.entity.ProjectMember;
+import com.review.projectservice.domain.entity.Video;
 import com.review.projectservice.domain.repository.*;
 import com.review.projectservice.infrastructure.external.UserClient;
 import com.review.projectservice.infrastructure.properties.HostProperties;
 import com.review.projectservice.infrastructure.properties.SQSProperties;
+import com.review.projectservice.shared.FileUtil;
 import com.review.projectservice.shared.PageResponse;
 import com.review.projectservice.shared.SecurityUtil;
 import com.review.projectservice.shared.mapper.ProjectMapper;
@@ -29,6 +32,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -53,7 +57,8 @@ public class ProjectServiceImpl implements ProjectService {
     private final DocumentRepository documentRepository;
     private final FolderRepository folderRepository;
     private final VideoRepository videoRepository;
-    
+    private final S3ServiceImpl s3Service;
+
 
     @Override
     @Transactional
@@ -169,6 +174,44 @@ public class ProjectServiceImpl implements ProjectService {
         );
 
         return ApiResponse.success(response, "Project details fetched successfully");
+    }
+
+
+    @Override
+    public ApiResponse<?> uploadFile(UUID projectId, MultipartFile file) {
+        log.info("Uploading file for project {}", projectId);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        String s3Key = s3Service.uploadFile(projectId, file);
+        String category = FileUtil.classifyFile(file);
+
+        switch (category) {
+            case "video" -> {
+                Video video = new Video();
+                video.setProjectId(project.getId());
+                video.setName(file.getOriginalFilename());
+                video.setFilePath(s3Key);
+                video.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                videoRepository.save(video);
+            }
+//            case "folder" -> {
+//                return ApiResponse.error("Cannot upload a folder!");
+//            }
+            case "document" -> {
+                Document document = new Document();
+                document.setProjectId(project.getId());
+                document.setName(file.getOriginalFilename());
+                document.setFilePath(s3Key);
+                document.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                documentRepository.save(document);
+            }
+
+            default -> throw new IllegalArgumentException("Invalid category");
+
+        }
+        return ApiResponse.success("File uploaded and saved successfully.");
+
     }
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {
