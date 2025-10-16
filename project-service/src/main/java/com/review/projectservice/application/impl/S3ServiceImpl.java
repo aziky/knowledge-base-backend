@@ -27,7 +27,7 @@ public class S3ServiceImpl implements S3Service {
     private final S3Properties s3Properties;
 
 
-    public void uploadFile(UUID projectId, MultipartFile file) {
+    public String uploadFile(UUID projectId, MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
         log.info("Start handle upload file: {}", originalFilename);
         if (originalFilename == null || originalFilename.isBlank()) {
@@ -54,6 +54,8 @@ public class S3ServiceImpl implements S3Service {
 
         log.info("File uploaded successfully to s3://{}/{} (ETag: {})",
                 s3Properties.bucketName(), key, response.eTag());
+
+        return key;
     }
 
 

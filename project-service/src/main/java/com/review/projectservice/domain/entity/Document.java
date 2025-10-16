@@ -6,10 +6,11 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -27,11 +28,8 @@ public class Document {
     @Column(name = "document_id", nullable = false)
     private UUID id;
 
-    @NotNull
-    @Column(name = "uploaded_by", nullable = false)
-    private UUID uploadedBy;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", insertable = false, updatable = false)
     private Project project;
 
@@ -48,7 +46,7 @@ public class Document {
 
     @Size(max = 255)
     @NotNull
-    @Column(name = "name", nullable = false)
+    @Column(name = "name")
     private String name;
 
     @Column(name = "file_path", length = Integer.MAX_VALUE)
@@ -61,6 +59,10 @@ public class Document {
     @Column(name = "metadata")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> metadata;
+
+    @CreatedBy
+    @Column(name = "uploaded_by")
+    private String uploadedBy;
 
     @CreationTimestamp
     @Column(name = "uploaded_at")
