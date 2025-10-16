@@ -46,4 +46,7 @@ public record ApiResponse<T>(
     public static <T> ApiResponse<T> internalError() {
         return new ApiResponse<>(500, "Internal server error", null);
     }
+    public static <T> ApiResponse<T> internalError(String message) {
+        return new ApiResponse<>(500, message, null);
+    }
 }

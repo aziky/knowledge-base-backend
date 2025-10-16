@@ -27,8 +27,9 @@ spring:
       credentials:
         access-key: ${AWS_ACCESS_KEY_ID}
         secret-key: ${AWS_SECRET_ACCESS_KEY}
-      #      s3:
-      #        bucket: hamster-application
+      s3:
+        bucket-name: kb-bucket-personal-2025-10-09
+        region: ${AWS_REGION}
       sqs:
         region: ${AWS_REGION}
         email-queue: ${AWS_SQS_EMAIL_QUEUE}
@@ -78,6 +79,10 @@ springdoc:
 #      defaultZone: http://localhost:8761/eureka/
 #  instance:
 #    prefer-ip-address: true
+
+eureka:
+  client:
+    enabled: false
 
 host:
   frontend-host: http://localhost:3000/verified-successfully
