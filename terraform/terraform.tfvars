@@ -15,6 +15,11 @@ email_queue_name                = "email-queue"
 email_queue_visibility_timeout  = 60
 email_queue_message_retention   = 1209600  # 14 days for email processing
 
+# Video Queue Configuration
+video_queue_name                = "video-queue"
+video_queue_visibility_timeout  = 300       # 5 minutes for video processing
+video_queue_message_retention   = 1209600   # 14 days for video processing
+
 # RDS PostgreSQL Configuration
 db_identifier     = "knowledge-base-db"
 db_name          = "knowledge_base"

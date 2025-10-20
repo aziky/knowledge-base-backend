@@ -19,17 +19,4 @@ output "queue_name" {
   value       = aws_sqs_queue.this.name
 }
 
-output "dlq_id" {
-  description = "ID của Dead Letter Queue"
-  value       = aws_sqs_queue.dlq.id
-}
-
-output "dlq_arn" {
-  description = "ARN của Dead Letter Queue"
-  value       = aws_sqs_queue.dlq.arn
-}
-
-output "dlq_url" {
-  description = "URL của Dead Letter Queue"
-  value       = aws_sqs_queue.dlq.url
-}
+# DLQ outputs đã được xóa - không sử dụng Dead Letter Queue nữa

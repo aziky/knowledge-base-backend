@@ -56,6 +56,25 @@ variable "email_queue_message_retention" {
   default     = 86400 # 1 ngày
 }
 
+# Video Queue Variables
+variable "video_queue_name" {
+  description = "Tên của Video SQS queue"
+  type        = string
+  default     = "video-queue"
+}
+
+variable "video_queue_visibility_timeout" {
+  description = "Visibility timeout cho Video SQS queue (giây)"
+  type        = number
+  default     = 30
+}
+
+variable "video_queue_message_retention" {
+  description = "Thời gian giữ message trong Video SQS (giây)"
+  type        = number
+  default     = 86400 # 1 ngày
+}
+
 # RDS PostgreSQL Variables
 variable "db_identifier" {
   description = "Tên identifier cho RDS instance"
