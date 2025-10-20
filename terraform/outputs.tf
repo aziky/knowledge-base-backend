@@ -32,15 +32,7 @@ output "sqs_queue_url" {
   value       = module.sqs_queue.queue_url
 }
 
-output "sqs_dlq_arn" {
-  description = "ARN của Dead Letter Queue"
-  value       = module.sqs_queue.dlq_arn
-}
-
-output "sqs_dlq_url" {
-  description = "URL của Dead Letter Queue"
-  value       = module.sqs_queue.dlq_url
-}
+# Document queue DLQ outputs đã xóa
 
 # Email Queue Outputs
 output "email_queue_id" {
@@ -58,15 +50,25 @@ output "email_queue_url" {
   value       = module.email_queue.queue_url
 }
 
-output "email_dlq_arn" {
-  description = "ARN của Email Dead Letter Queue"
-  value       = module.email_queue.dlq_arn
+# Email queue DLQ outputs đã xóa
+
+# Video Queue Outputs
+output "video_queue_id" {
+  description = "ID của Video SQS queue"
+  value       = module.video_queue.queue_id
 }
 
-output "email_dlq_url" {
-  description = "URL của Email Dead Letter Queue"
-  value       = module.email_queue.dlq_url
+output "video_queue_arn" {
+  description = "ARN của Video SQS queue"
+  value       = module.video_queue.queue_arn
 }
+
+output "video_queue_url" {
+  description = "URL của Video SQS queue"
+  value       = module.video_queue.queue_url
+}
+
+# Video queue DLQ outputs đã xóa
 
 # RDS PostgreSQL Outputs
 output "db_endpoint" {

@@ -78,13 +78,14 @@ resource "aws_security_group" "rds" {
   description = "Security group for RDS PostgreSQL instance"
   vpc_id      = data.aws_vpc.default.id
 
-  # Cho phép PostgreSQL traffic từ your specific IPs
+  # Cho phép PostgreSQL traffic từ mọi IP (0.0.0.0/0)
+  # ⚠️ WARNING: Không an toàn cho production! Chỉ dùng cho development/testing
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["103.199.68.69/32", "103.199.55.71/32"]
-    description = "PostgreSQL access from your IPs only"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "PostgreSQL access from anywhere (INSECURE - for testing only)"
   }
 
   # Cho phép tất cả outbound traffic

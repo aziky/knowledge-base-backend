@@ -3,6 +3,7 @@ package com.review.projectservice.application.impl;
 
 import com.review.projectservice.application.S3Service;
 import com.review.projectservice.infrastructure.properties.S3Properties;
+import com.review.projectservice.shared.FileUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,8 +35,8 @@ public class S3ServiceImpl implements S3Service {
             throw new IllegalArgumentException("File name cannot be empty");
         }
 
-        String fileCategory = determineFileCategory(originalFilename, file.getContentType());
-        String key = String.format("%s/%s/%s", projectId, fileCategory, originalFilename);
+        String fileCategory = FileUtil.classifyFile(file);
+        String key = String.format("%s/%s/%s", fileCategory, projectId, originalFilename);
 
         PutObjectResponse response = null;
         try {
@@ -57,32 +58,6 @@ public class S3ServiceImpl implements S3Service {
 
         return key;
     }
-
-
-
-    private String determineFileCategory(String filename, String contentType) {
-        String extension = "";
-        int i = filename.lastIndexOf('.');
-        if (i > 0) {
-            extension = filename.substring(i + 1).toLowerCase();
-        }
-
-        switch (extension) {
-            case "mp4", "mov", "avi", "mkv", "wmv" -> {
-                return "videos";
-            }
-
-            case "zip", "rar", "7z", "tar", "gz" -> {
-                return "folders";
-            }
-
-            default -> {
-                return "documents";
-            }
-        }
-    }
-
-
 
 
     public byte[] downloadFile(String fileName) throws IOException {
