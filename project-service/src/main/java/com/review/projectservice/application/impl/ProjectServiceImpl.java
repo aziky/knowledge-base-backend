@@ -1,15 +1,13 @@
 package com.review.projectservice.application.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.review.common.dto.request.NotificationMessage;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
 import com.review.common.enumration.Template;
 import com.review.common.shared.CustomUserDetails;
-import com.review.projectservice.api.dto.project.CreateInvitationReq;
-import com.review.projectservice.api.dto.project.CreateProjectReq;
-import com.review.projectservice.api.dto.project.GetProjectRes;
-import com.review.projectservice.api.dto.project.ProjectDetailRes;
+import com.review.projectservice.api.dto.project.*;
 import com.review.projectservice.application.ProjectService;
 import com.review.projectservice.application.RedisService;
 import com.review.projectservice.application.SQSService;
@@ -58,6 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final FolderRepository folderRepository;
     private final VideoRepository videoRepository;
     private final S3ServiceImpl s3Service;
+    private final ObjectMapper objectMapper;
 
 
     @Override
@@ -215,6 +214,33 @@ public class ProjectServiceImpl implements ProjectService {
 
         return ApiResponse.success("File uploaded and saved successfully.");
 
+    }
+
+    @Override
+    public ApiResponse<?> searchEntityByPath(String path, String type) {
+        log.info("Searching for {} with path: {}", type, path);
+        switch (type.toLowerCase()) {
+            case "document" -> {
+                Document document = documentRepository.findByFilePathAndIsActiveTrue(path)
+                        .orElseThrow(() -> new EntityNotFoundException("Document not found"));
+                DocumentRes res = new DocumentRes(
+                        document.getId(),
+                        document.getName(),
+                        document.getFilePath(),
+                        document.getFileType(),
+                        document.getProjectId(),
+                        document.getUploadedAt()
+                );
+
+                return ApiResponse.success(res, "Document found successfully");
+            }
+            case "video" -> {
+//                Video video = videoRepository.findByFilePath(path)
+//                        .orElseThrow(() -> new EntityNotFoundException("Video not found"));
+                return ApiResponse.success("Video found successfully");
+            }
+            default -> throw new IllegalArgumentException("Invalid type");
+        }
     }
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {

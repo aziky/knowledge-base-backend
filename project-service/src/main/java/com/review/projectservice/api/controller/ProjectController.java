@@ -1,5 +1,6 @@
 package com.review.projectservice.api.controller;
 
+import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.application.ProjectService;
@@ -71,6 +72,11 @@ public class ProjectController {
     @PostMapping("/{projectId}/upload")
     public ResponseEntity<?> uploadFile(@PathVariable UUID projectId, @RequestPart("files") MultipartFile[] files) {
         return ResponseEntity.ok(projectService.uploadFile(projectId, files));
+    }
+
+    @GetMapping("/path")
+    public ResponseEntity<ApiResponse<?>> test(@RequestParam String path, @RequestParam String type) {
+        return ResponseEntity.ok(projectService.searchEntityByPath(path, type));
     }
 
 

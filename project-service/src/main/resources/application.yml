@@ -100,3 +100,8 @@ host:
   frontend-host: http://localhost:3000/verified-successfully
   backend-host: http://localhost:7070/project-service/api
   verified-invitation: /project/verified-invitation
+
+
+internal:
+  service:
+    secret: ${INTERNAL_SERVICE_SECRET}

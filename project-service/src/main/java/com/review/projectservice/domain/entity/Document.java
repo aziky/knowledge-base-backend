@@ -56,6 +56,14 @@ public class Document {
     @Column(name = "file_type", length = 20)
     private String fileType;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Size(max = 50)
+    @Column(name = "status", length = 50)
+    private String status;
+
+
     @Column(name = "metadata")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> metadata;
