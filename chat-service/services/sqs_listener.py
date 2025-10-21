@@ -1,12 +1,14 @@
 import os
 import time
 import logging
+import json
 from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
+from services.document_service import DocumentService
 
 class SQSListener:
-    def __init__(self, queue_url=None):
+    def __init__(self, queue_url):
         # Load environment variables
         load_dotenv()
 
@@ -26,6 +28,10 @@ class SQSListener:
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key
         )
+        
+        if "document" in self.queue_url.lower():
+            self.document_service = DocumentService()
+        
         self.logger.info(f"SQSListener initialized for queue: {self.queue_url}")
 
     def listen(self):
@@ -43,13 +49,19 @@ class SQSListener:
 
                 for message in messages:
                     self.logger.info(f"Received message: {message['Body']}")
+                    
+                    try:
+                        event_json = json.loads(message['Body'])
+                        self.document_service.process_s3_event(event_json)
+                    except Exception as e:
+                        self.logger.error(f"Error processing message: {e}")
 
-                    # Xử lý xong → xóa message
                     self.sqs.delete_message(
                         QueueUrl=self.queue_url,
                         ReceiptHandle=message['ReceiptHandle']
                     )
                     self.logger.info("Deleted message from queue.")
+
 
             except ClientError as e:
                 self.logger.error(f"AWS ClientError: {e}")
