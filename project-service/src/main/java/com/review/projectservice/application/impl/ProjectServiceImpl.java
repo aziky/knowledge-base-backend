@@ -178,38 +178,41 @@ public class ProjectServiceImpl implements ProjectService {
 
 
     @Override
-    public ApiResponse<?> uploadFile(UUID projectId, MultipartFile file) {
+    public ApiResponse<?> uploadFile(UUID projectId, MultipartFile[] files) {
         log.info("Uploading file for project {}", projectId);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
 
-        String s3Key = s3Service.uploadFile(projectId, file);
-        String category = FileUtil.classifyFile(file);
+        for (MultipartFile file : files) {
+            String s3Key = s3Service.uploadFile(projectId, file);
+            String category = FileUtil.classifyFile(file);
 
-        switch (category) {
-            case "video" -> {
-                Video video = new Video();
-                video.setProjectId(project.getId());
-                video.setName(file.getOriginalFilename());
-                video.setFilePath(s3Key);
-                video.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
-                videoRepository.save(video);
-            }
+            switch (category) {
+                case "video" -> {
+                    Video video = new Video();
+                    video.setProjectId(project.getId());
+                    video.setName(file.getOriginalFilename());
+                    video.setFilePath(s3Key);
+                    video.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                    videoRepository.save(video);
+                }
 //            case "folder" -> {
 //                return ApiResponse.error("Cannot upload a folder!");
 //            }
-            case "document" -> {
-                Document document = new Document();
-                document.setProjectId(project.getId());
-                document.setName(file.getOriginalFilename());
-                document.setFilePath(s3Key);
-                document.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
-                documentRepository.save(document);
+                case "document" -> {
+                    Document document = new Document();
+                    document.setProjectId(project.getId());
+                    document.setName(file.getOriginalFilename());
+                    document.setFilePath(s3Key);
+                    document.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                    documentRepository.save(document);
+                }
+
+                default -> throw new IllegalArgumentException("Invalid category");
+
             }
-
-            default -> throw new IllegalArgumentException("Invalid category");
-
         }
+
         return ApiResponse.success("File uploaded and saved successfully.");
 
     }
