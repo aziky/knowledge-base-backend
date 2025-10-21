@@ -53,14 +53,13 @@ class SQSListener:
                     try:
                         event_json = json.loads(message['Body'])
                         self.document_service.process_s3_event(event_json)
+                        self.sqs.delete_message(
+                            QueueUrl=self.queue_url,
+                            ReceiptHandle=message['ReceiptHandle']
+                        )
+                        self.logger.info("Deleted message from queue.")
                     except Exception as e:
                         self.logger.error(f"Error processing message: {e}")
-
-                    self.sqs.delete_message(
-                        QueueUrl=self.queue_url,
-                        ReceiptHandle=message['ReceiptHandle']
-                    )
-                    self.logger.info("Deleted message from queue.")
 
 
             except ClientError as e:

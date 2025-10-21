@@ -69,8 +69,8 @@ public class ProjectController {
 
 
     @PostMapping("/{projectId}/upload")
-    public ResponseEntity<?> uploadFile(@PathVariable UUID projectId, @RequestPart("file") MultipartFile file) {
-        return ResponseEntity.ok(projectService.uploadFile(projectId, file));
+    public ResponseEntity<?> uploadFile(@PathVariable UUID projectId, @RequestPart("files") MultipartFile[] files) {
+        return ResponseEntity.ok(projectService.uploadFile(projectId, files));
     }
 
 

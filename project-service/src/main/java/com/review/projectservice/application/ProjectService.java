@@ -22,6 +22,6 @@ public interface ProjectService {
 
     ApiResponse<?> getProjectDetails(UUID projectId);
 
-    ApiResponse<?> uploadFile(UUID projectId, MultipartFile file);
+    ApiResponse<?> uploadFile(UUID projectId, MultipartFile[] files);
 
 }

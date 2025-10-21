@@ -8,7 +8,9 @@ from botocore.exceptions import ClientError
 from repository.entitty.document import Document
 from config.config import db
 import os
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader as PdfReader
+from docx import Document as DocxDocument
+import urllib.parse
 
 
 class DocumentService:
@@ -64,7 +66,8 @@ class DocumentService:
 
     def download_file(self, bucket, key):
         try:
-            response = self.s3.get_object(Bucket=bucket, Key=key)
+            decoded_key = urllib.parse.unquote_plus(key)
+            response = self.s3.get_object(Bucket=bucket, Key=decoded_key)
             content = response["Body"].read()
             self.logger.info(f"Downloaded file size: {len(content)} bytes")
             return content
@@ -72,31 +75,37 @@ class DocumentService:
             self.logger.error(f"Failed to download s3://{bucket}/{key}: {e}")
             return None
     
+    
     def extract_text_from_document(self, key, content):
         self.logger.info(f"Extracting text from document: {key}")
         try:
             _, ext = os.path.splitext(key)
             ext = ext.lower()
 
-            # Only handle PDF files
-            if ext != ".pdf":
-                self.logger.warning(f"File {key} is not a PDF. Skipping extraction.")
-                return None
-
             # Write content to a temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
                 tmp_file.write(content)
                 tmp_path = tmp_file.name
 
-            # Use PyPDF2 to extract text
-            reader = PdfReader(tmp_path)
             text = ""
-            for page in reader.pages:
-                page_text = page.extract_text()
-                
-                # check empty or not
-                if page_text:
-                    text += page_text + "\n"
+
+            if ext == ".pdf":
+                reader = PdfReader(tmp_path)
+                for page in reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+
+            elif ext == ".docx":
+                doc = DocxDocument(tmp_path)
+                for para in doc.paragraphs:
+                    if para.text:
+                        text += para.text + "\n"
+
+            else:
+                self.logger.warning(f"File {key} is not a supported document type. Skipping extraction.")
+                os.remove(tmp_path)
+                return None
 
             # Clean up temp file
             os.remove(tmp_path)
