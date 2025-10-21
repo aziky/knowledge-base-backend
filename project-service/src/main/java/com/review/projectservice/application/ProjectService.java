@@ -24,4 +24,6 @@ public interface ProjectService {
 
     ApiResponse<?> uploadFile(UUID projectId, MultipartFile[] files);
 
+    ApiResponse<?> searchEntityByPath(String path, String type);
+
 }

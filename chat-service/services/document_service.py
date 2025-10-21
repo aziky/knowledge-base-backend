@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import requests
 from repository.entitty.document import Document
 import json
 import tempfile
@@ -24,16 +25,74 @@ class DocumentService:
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")    
         )
+        
+        self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
+        self.api_secret = os.getenv("INTERNAL_API_SECRET")
+        
+    
         self.logger = logging.getLogger(self.__class__.__name__)
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
+
     def get_all_documents(self):
         try:
+            self._call_project_service_test()
             return Document.query.all()
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []
         
+        
+    def _call_project_service_test(self):
+        """
+        Calls the /project/test endpoint on the Project Service,
+        parses the structured JSON response, and logs the results.
+        
+        Returns:
+            dict or None: The 'data' payload if successful, otherwise None.
+        """
+        api_url = self.project_service_url + "/project/path"
+        headers = {
+            "X-Internal-Secret": self.api_secret,
+            "Accept": "application/json"
+        }
+        params = {}
+        params["path"] = "document/c9d56f1c-2b41-4783-8fa1-6e87258429f3/Buổi họp 30_08.docx"
+        params["type"] = "document"
+        
+        self.logger.info(f"Attempting to call external API: {api_url}")
+        
+        try:
+            api_response = requests.get(api_url, headers=headers, timeout=5, params=params) # Added timeout
+            api_response.raise_for_status()
+            
+            # Use .json() to parse the structured response
+            api_data = api_response.json()
+            
+            response_code = api_data.get('code')
+            response_message = api_data.get('message')
+            response_payload = api_data.get('data')
+            
+            self.logger.info(f"API call successful. HTTP Status: {api_response.status_code}")
+            self.logger.info(f"Project Service Response - Code: {response_code}, Message: {response_message}")
+            self.logger.info(f"Project Service Payload (Data): {response_payload}")
+            self.logger.info(f"DocumentId : {response_payload.get('documentId') if response_payload else 'N/A'}")
+            
+            return response_payload
+            
+        except requests.exceptions.HTTPError as http_err:
+            self.logger.error(f"HTTP error from {api_url}: {http_err}. Response: {api_response.text[:100]}...")
+            return None 
+
+        except requests.exceptions.JSONDecodeError as json_err:
+            self.logger.error(f"JSON Decode error from {api_url}: {json_err}. Raw Response: {api_response.text[:100]}...")
+            return None
+
+        except requests.exceptions.RequestException as req_err:
+            self.logger.error(f"Connection error calling {api_url}: {req_err}")
+            return None
+    
+    
     
     def process_s3_event(self, json):
             """

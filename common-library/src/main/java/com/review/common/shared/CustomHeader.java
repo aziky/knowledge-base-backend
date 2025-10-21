@@ -5,4 +5,5 @@ public interface CustomHeader {
     String X_ROLES = "X-Roles";
     String X_EMAIL = "X-Email";
     String X_FULL_NAME = "X-Full-Name";
+    String X_INTERNAL_SECRET = "X-Internal-Secret";
 }
