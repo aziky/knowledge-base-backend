@@ -63,6 +63,10 @@ public class Video {
     @Column(name = "file_type", length = 20)
     private String fileType;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+
     @Column(name = "transcript", length = Integer.MAX_VALUE)
     private String transcript;
 
