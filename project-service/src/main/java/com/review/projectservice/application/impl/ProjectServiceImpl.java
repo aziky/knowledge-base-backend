@@ -193,6 +193,7 @@ public class ProjectServiceImpl implements ProjectService {
                     video.setName(file.getOriginalFilename());
                     video.setFilePath(s3Key);
                     video.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                    video.setIsActive(true);
                     videoRepository.save(video);
                 }
 //            case "folder" -> {
@@ -204,6 +205,7 @@ public class ProjectServiceImpl implements ProjectService {
                     document.setName(file.getOriginalFilename());
                     document.setFilePath(s3Key);
                     document.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
+                    document.setIsActive(true);
                     documentRepository.save(document);
                 }
 

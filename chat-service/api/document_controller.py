@@ -1,8 +1,7 @@
 from flask_restx import Resource, fields, Namespace
+from flask import current_app
 
 from services.document_service import DocumentService
-
-document_service = DocumentService()
 
 
 def document_controller(api):
@@ -23,6 +22,8 @@ def document_controller(api):
     # @document_ns.marshal_list_with(document_model)
     class DocumentResource(Resource):
         def get(self):
+            # Create document service instance with current app context
+            document_service = DocumentService(current_app)
             documents = document_service.get_all_documents()
             result = []
             for doc in documents:

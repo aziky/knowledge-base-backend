@@ -8,3 +8,8 @@ Flask-SQLAlchemy>=3.0.0
 psycopg2-binary>=2.9.6
 PyPDF2>=3.0.0
 python-docx
+langchain~=0.1.20
+langchain-core~=0.1.27
+langchain-postgres~=0.0.3
+tiktoken>=0.6.0
+sentence-transformers~=2.7.0

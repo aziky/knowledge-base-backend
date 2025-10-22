@@ -1,24 +1,24 @@
 from dotenv import load_dotenv
 import requests
 from repository.entitty.document import Document
-import json
 import tempfile
 import logging
 import boto3
 from botocore.exceptions import ClientError
 from repository.entitty.document import Document
-from config.config import db
 import os
 from PyPDF2 import PdfReader as PdfReader
 from docx import Document as DocxDocument
 import urllib.parse
+from services.embedding_service import EmbeddingService
 
 
 class DocumentService:
-    def __init__(self):
+    def __init__(self, app=None):
         
         load_dotenv()
-        
+
+        self.embedding_service = EmbeddingService(app)
         self.s3 = boto3.client(
             "s3",
             region_name=os.getenv("AWS_REGION", "ap-southeast-1"),
@@ -28,6 +28,7 @@ class DocumentService:
         
         self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
         self.api_secret = os.getenv("INTERNAL_API_SECRET")
+    
         
     
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -36,16 +37,16 @@ class DocumentService:
 
     def get_all_documents(self):
         try:
-            self._call_project_service_test()
+            # self._call_project_service_test()
             return Document.query.all()
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []
         
         
-    def _call_project_service_test(self):
+    def _call_project_service_test(self, path, type):
         """
-        Calls the /project/test endpoint on the Project Service,
+        Calls the /project/path endpoint on the Project Service,
         parses the structured JSON response, and logs the results.
         
         Returns:
@@ -56,13 +57,19 @@ class DocumentService:
             "X-Internal-Secret": self.api_secret,
             "Accept": "application/json"
         }
-        params = {}
-        params["path"] = "document/c9d56f1c-2b41-4783-8fa1-6e87258429f3/Buổi họp 30_08.docx"
-        params["type"] = "document"
-        
+
+        decoded_path = urllib.parse.unquote_plus(path)
+
+        params = {
+            "path": decoded_path,
+            "type": type
+        }
+
         self.logger.info(f"Attempting to call external API: {api_url}")
         
         try:
+            final_url = requests.Request("GET", api_url, params=params).prepare().url
+            self.logger.info(f"Final URL: {final_url}")
             api_response = requests.get(api_url, headers=headers, timeout=5, params=params) # Added timeout
             api_response.raise_for_status()
             
@@ -73,9 +80,7 @@ class DocumentService:
             response_message = api_data.get('message')
             response_payload = api_data.get('data')
             
-            self.logger.info(f"API call successful. HTTP Status: {api_response.status_code}")
             self.logger.info(f"Project Service Response - Code: {response_code}, Message: {response_message}")
-            self.logger.info(f"Project Service Payload (Data): {response_payload}")
             self.logger.info(f"DocumentId : {response_payload.get('documentId') if response_payload else 'N/A'}")
             
             return response_payload
@@ -112,7 +117,13 @@ class DocumentService:
                     
                     extracted_text = self.extract_text_from_document(key, content)
                     if extracted_text:
+                        
                         self.logger.info(f"Extracted text from {key}:\n{extracted_text}")
+                        document = self._call_project_service_test(key, "document")
+                        document_id = document.get("documentId")
+                        
+                        self.chunk_extracted_text(document_id, extracted_text)
+                        
                     else:
                         self.logger.warning(f"No text extracted from document: s3://{bucket}/{key}")
                     
@@ -175,3 +186,15 @@ class DocumentService:
         except Exception as e:
             self.logger.error(f"Error extracting text from document {key}: {e}")
             return None
+
+    def chunk_extracted_text(self, document_id, text):
+        """
+        Delegate chunking + embedding process to EmbeddingService.
+        """
+        try:
+            num_chunks = self.embedding_service.chunk_and_embed(document_id, text)
+            self.logger.info(f"Document {document_id}: {num_chunks} chunks embedded and saved.")
+            return num_chunks
+        except Exception as e:
+            self.logger.error(f"Error during embedding for document {document_id}: {e}")
+            return 0

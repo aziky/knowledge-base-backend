@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
 from services.document_service import DocumentService
+from config.config import create_app
 
 class SQSListener:
     def __init__(self, queue_url):
@@ -30,7 +31,9 @@ class SQSListener:
         )
         
         if "document" in self.queue_url.lower():
-            self.document_service = DocumentService()
+            # Create Flask app instance for database context
+            app, _ = create_app()
+            self.document_service = DocumentService(app)
         
         self.logger.info(f"SQSListener initialized for queue: {self.queue_url}")
 
