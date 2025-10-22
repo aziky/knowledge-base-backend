@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
-    List<Document> findAllByProjectId(UUID projectId);
+    List<Document> findAllByProjectIdAndIsActiveTrue(UUID projectId);
 
     Optional<Document> findByFilePathAndIsActiveTrue(String filePath);
 

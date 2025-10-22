@@ -144,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
                 ))
                 .toList();
 
-        var documents = documentRepository.findAllByProjectId(projectId).stream()
+        var documents = documentRepository.findAllByProjectIdAndIsActiveTrue(projectId).stream()
                 .map(d -> new ProjectDetailRes.DocumentInfo(
                         d.getId(),
                         d.getName(),
@@ -153,7 +153,7 @@ public class ProjectServiceImpl implements ProjectService {
                 ))
                 .toList();
 
-        var videos = videoRepository.findAllByProjectId(projectId).stream()
+        var videos = videoRepository.findAllByProjectIdAndIsActiveTrue(projectId).stream()
                 .map(v -> new ProjectDetailRes.VideoInfo(
                         v.getId(),
                         v.getName(),
