@@ -4,10 +4,9 @@ import com.review.projectservice.api.dto.document.DeleteDocumentReq;
 import com.review.projectservice.application.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/document")
@@ -22,6 +21,11 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.deleteListDocument(request));
     }
 
+
+    @PatchMapping("/{documentId}/status")
+    public ResponseEntity<?> updateDocumentStatus(@PathVariable("documentId") UUID documentId, @RequestParam("status") String status) {
+        return ResponseEntity.ok(documentService.updateDocumentStatus(documentId, status));
+    }
 
 
 }

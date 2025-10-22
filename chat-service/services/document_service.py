@@ -44,7 +44,7 @@ class DocumentService:
             return []
         
         
-    def _call_project_service_test(self, path, type):
+    def _call_project_service_get_document(self, path, type):
         """
         Calls the /project/path endpoint on the Project Service,
         parses the structured JSON response, and logs the results.
@@ -119,11 +119,11 @@ class DocumentService:
                     if extracted_text:
                         
                         self.logger.info(f"Extracted text from {key}:\n{extracted_text}")
-                        document = self._call_project_service_test(key, "document")
+                        document = self._call_project_service_get_document(key, "document")
                         document_id = document.get("documentId")
                         
                         self.chunk_extracted_text(document_id, extracted_text)
-                        
+                        self._update_document_status_after_embedding(document_id, status="COMPLETED")
                     else:
                         self.logger.warning(f"No text extracted from document: s3://{bucket}/{key}")
                     
@@ -198,3 +198,47 @@ class DocumentService:
         except Exception as e:
             self.logger.error(f"Error during embedding for document {document_id}: {e}")
             return 0
+
+    def _update_document_status_after_embedding(self, document_id, status="EMBEDDED"):
+        """
+        Update document status in Project Service after embedding.
+
+        Args:
+            document_id (UUID or str): ID of the document being processed.
+            status (str): New status to update (default: "EMBEDDED").
+
+        Returns:
+            bool: True if status update succeeded, False otherwise.
+        """
+        api_url = f"{self.project_service_url}/document/{document_id}/status"
+        headers = {
+            "X-Internal-Secret": self.api_secret,
+        }
+
+        params = {
+            "status": status
+        }
+
+        try:
+            self.logger.info(f"Updating document status in Project Service: {api_url} with status={status}")
+            response = requests.patch(api_url, headers=headers, params=params, timeout=5)
+            response.raise_for_status()
+
+            response_data = response.json()
+            self.logger.info(
+                f"Project Service PATCH Response - Code: {response_data.get('code')}, "
+                f"Message: {response_data.get('message')}"
+            )
+            return True
+
+        except requests.exceptions.HTTPError as http_err:
+            self.logger.error(f"HTTP error while updating status: {http_err}. Response: {response.text[:100]}...")
+            return False
+
+        except requests.exceptions.JSONDecodeError as json_err:
+            self.logger.error(f"JSON decode error while updating status: {json_err}. Raw response: {response.text[:100]}...")
+            return False
+
+        except requests.exceptions.RequestException as req_err:
+            self.logger.error(f"Connection error while updating status: {req_err}")
+            return False

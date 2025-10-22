@@ -67,6 +67,11 @@ public class Video {
     private Boolean isActive;
 
 
+    @Size(max = 50)
+    @Column(name = "status", length = 50)
+    private String status;
+
+
     @Column(name = "transcript", length = Integer.MAX_VALUE)
     private String transcript;
 

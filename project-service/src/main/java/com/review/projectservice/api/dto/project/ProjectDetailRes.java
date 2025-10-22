@@ -14,6 +14,6 @@ public record ProjectDetailRes(
         List<VideoInfo> videos
 ) {
     public record FolderInfo(UUID id, String folderName, LocalDateTime createdAt) {}
-    public record DocumentInfo(UUID id, String fileName, String fileType, LocalDateTime uploadedAt) {}
-    public record VideoInfo(UUID id, String fileName, String fileType, LocalDateTime uploadedAt) {}
+    public record DocumentInfo(UUID id, String fileName, String fileType, LocalDateTime uploadedAt, String status) {}
+    public record VideoInfo(UUID id, String fileName, String fileType, LocalDateTime uploadedAt, String status) {}
 }
