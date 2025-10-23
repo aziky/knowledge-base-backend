@@ -12,7 +12,7 @@ def chat_controller(api):
     
     # Request models
     chat_request_model = chat_ns.model('ChatRequest', {
-        'project_id': fields.String(required=False, description='Project ID for filtering (optional)'),
+        'document_ids': fields.List(fields.String, required=False, description='List of document IDs for filtering (optional)'),
         'question': fields.String(required=True, description='User question to be answered')
     })
     
@@ -29,7 +29,7 @@ def chat_controller(api):
         'chunks_found': fields.Integer(description='Number of relevant chunks found'),
         'gemini_status': fields.String(description='Status of Gemini API call'),
         'user_id': fields.String(description='User ID'),
-        'project_id': fields.String(description='Project ID')
+        'document_ids': fields.List(fields.String, description='Document IDs used for filtering')
     })
     
     chat_response_model = chat_ns.model('ChatResponse', {
@@ -62,16 +62,20 @@ def chat_controller(api):
                     return {'error': 'Request body is required'}, 400
                 
                 user_question = data.get('question', '').strip()
-                project_id = data.get('project_id', '').strip() or None
+                document_ids = data.get('document_ids', [])
                 
                 # Validate required fields
                 if not user_question:
                     return {'error': 'Question is required'}, 400
                 
-                # Process the chat query (using injected service)
+                # Ensure document_ids is a list
+                if document_ids and not isinstance(document_ids, list):
+                    document_ids = [document_ids]
+                
+                # Process the chat query
                 response = chat_service.process_chat_query(
                     user_question=user_question,
-                    project_id=project_id
+                    document_ids=document_ids if document_ids else None
                 )
                 
                 return response, 200
