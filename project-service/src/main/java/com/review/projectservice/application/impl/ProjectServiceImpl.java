@@ -15,6 +15,7 @@ import com.review.projectservice.domain.entity.Document;
 import com.review.projectservice.domain.entity.Project;
 import com.review.projectservice.domain.entity.ProjectMember;
 import com.review.projectservice.domain.entity.Video;
+import com.review.projectservice.domain.enumration.HandleStaus;
 import com.review.projectservice.domain.repository.*;
 import com.review.projectservice.infrastructure.external.UserClient;
 import com.review.projectservice.infrastructure.properties.HostProperties;
@@ -144,21 +145,23 @@ public class ProjectServiceImpl implements ProjectService {
                 ))
                 .toList();
 
-        var documents = documentRepository.findAllByProjectId(projectId).stream()
+        var documents = documentRepository.findAllByProjectIdAndIsActiveTrue(projectId).stream()
                 .map(d -> new ProjectDetailRes.DocumentInfo(
                         d.getId(),
                         d.getName(),
                         d.getFileType(),
-                        d.getUploadedAt()
+                        d.getUploadedAt(),
+                        d.getStatus()
                 ))
                 .toList();
 
-        var videos = videoRepository.findAllByProjectId(projectId).stream()
+        var videos = videoRepository.findAllByProjectIdAndIsActiveTrue(projectId).stream()
                 .map(v -> new ProjectDetailRes.VideoInfo(
                         v.getId(),
                         v.getName(),
                         v.getFileType(),
-                        v.getUploadedAt()
+                        v.getUploadedAt(),
+                        v.getStatus()
                 ))
                 .toList();
 
@@ -194,6 +197,7 @@ public class ProjectServiceImpl implements ProjectService {
                     video.setFilePath(s3Key);
                     video.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
                     video.setIsActive(true);
+                    video.setStatus(HandleStaus.PROCESSING.name());
                     videoRepository.save(video);
                 }
 //            case "folder" -> {
@@ -206,6 +210,7 @@ public class ProjectServiceImpl implements ProjectService {
                     document.setFilePath(s3Key);
                     document.setFileType(FileUtil.getFileExtension(file.getOriginalFilename()));
                     document.setIsActive(true);
+                    document.setStatus(HandleStaus.PROCESSING.name());
                     documentRepository.save(document);
                 }
 

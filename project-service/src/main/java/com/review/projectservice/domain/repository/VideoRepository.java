@@ -7,5 +7,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface VideoRepository extends JpaRepository<Video, UUID> {
-    List<Video> findAllByProjectId(UUID projectId);
+    List<Video> findAllByProjectIdAndIsActiveTrue(UUID projectId);
 }
