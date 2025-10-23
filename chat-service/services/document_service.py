@@ -160,17 +160,10 @@ class DocumentService:
             text = ""
 
             if ext == ".pdf":
-                reader = PdfReader(tmp_path)
-                for page in reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
+                text = self._extract_from_pdf(tmp_path)
 
             elif ext == ".docx":
-                doc = DocxDocument(tmp_path)
-                for para in doc.paragraphs:
-                    if para.text:
-                        text += para.text + "\n"
+                text = self._extract_from_docx(tmp_path)
 
             else:
                 self.logger.warning(f"File {key} is not a supported document type. Skipping extraction.")
@@ -186,6 +179,95 @@ class DocumentService:
         except Exception as e:
             self.logger.error(f"Error extracting text from document {key}: {e}")
             return None
+
+    def _extract_from_pdf(self, file_path):
+        """
+        Extract text from PDF, including basic table structure preservation.
+        Note: For complex tables, consider using libraries like pdfplumber or camelot-py.
+        """
+        text = ""
+        try:
+            reader = PdfReader(file_path)
+            for page_num, page in enumerate(reader.pages, 1):
+                page_text = page.extract_text()
+                if page_text:
+                    text += f"\n--- Page {page_num} ---\n"
+                    text += page_text + "\n"
+            
+            self.logger.info(f"PDF: Extracted text from {len(reader.pages)} pages")
+        except Exception as e:
+            self.logger.error(f"Error extracting from PDF: {e}")
+        
+        return text
+
+    def _extract_from_docx(self, file_path):
+        """
+        Extract text from DOCX, including paragraphs AND tables with structure preserved.
+        """
+        text = ""
+        try:
+            doc = DocxDocument(file_path)
+            
+            # Extract in document order (paragraphs and tables interleaved)
+            for element in doc.element.body:
+                # Check if element is a paragraph
+                if element.tag.endswith('p'):
+                    para_text = self._get_paragraph_text(element, doc)
+                    if para_text:
+                        text += para_text + "\n"
+                
+                # Check if element is a table
+                elif element.tag.endswith('tbl'):
+                    table_text = self._extract_table_text(element, doc)
+                    if table_text:
+                        text += "\n" + table_text + "\n"
+            
+            self.logger.info(f"DOCX: Extracted text with tables preserved")
+        except Exception as e:
+            self.logger.error(f"Error extracting from DOCX: {e}")
+        
+        return text
+
+    def _get_paragraph_text(self, para_element, doc):
+        """Helper to get text from a paragraph element."""
+        try:
+            from docx.text.paragraph import Paragraph
+            para = Paragraph(para_element, doc)
+            return para.text
+        except:
+            return ""
+
+    def _extract_table_text(self, table_element, doc):
+        """
+        Extract table content with structure preserved using markdown-style formatting.
+        """
+        try:
+            from docx.table import Table
+            table = Table(table_element, doc)
+            
+            table_text = "[TABLE]\n"
+            
+            for i, row in enumerate(table.rows):
+                row_cells = []
+                for cell in row.cells:
+                    cell_text = cell.text.strip().replace("\n", " ")
+                    row_cells.append(cell_text)
+                
+                # Use pipe-separated format for better structure
+                row_text = " | ".join(row_cells)
+                table_text += row_text + "\n"
+                
+                # Add separator after header row (first row)
+                if i == 0 and len(row.cells) > 0:
+                    separator = " | ".join(["---"] * len(row.cells))
+                    table_text += separator + "\n"
+            
+            table_text += "[/TABLE]\n"
+            return table_text
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting table: {e}")
+            return ""
 
     def chunk_extracted_text(self, document_id, text):
         """
