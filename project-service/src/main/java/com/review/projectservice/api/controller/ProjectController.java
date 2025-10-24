@@ -55,7 +55,7 @@ public class ProjectController {
         return new RedirectView(projectService.verifiedInvitationToken(token));
     }
 
-    @PutMapping("/{projectId}/remove-user/{userId}")
+    @DeleteMapping("/{projectId}/users/{userId}")
     public ResponseEntity<?> removeUserFromProject(
             @PathVariable UUID projectId,
             @PathVariable UUID userId
