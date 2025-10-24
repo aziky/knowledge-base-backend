@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
 from services.document_service import DocumentService
+from services.video_service import VideoService
 from config.config import create_app
 
 class SQSListener:
@@ -30,10 +31,23 @@ class SQSListener:
             aws_secret_access_key=self.aws_secret_access_key
         )
         
+        # Initialize appropriate service based on queue URL
         if "document" in self.queue_url.lower():
             # Create Flask app instance for database context
             app, _ = create_app()
             self.document_service = DocumentService(app)
+            self.service_type = "document"
+            self.logger.info("Initialized DocumentService for document queue")
+            
+        elif "video" in self.queue_url.lower():
+            # Create Flask app instance for database context
+            app, _ = create_app()
+            self.video_service = VideoService(app)
+            self.service_type = "video"
+            self.logger.info("Initialized VideoService for video queue")
+        else:
+            self.service_type = None
+            self.logger.warning("Unknown queue type, no service initialized")
         
         self.logger.info(f"SQSListener initialized for queue: {self.queue_url}")
 
@@ -55,12 +69,23 @@ class SQSListener:
                     
                     try:
                         event_json = json.loads(message['Body'])
-                        self.document_service.process_s3_event(event_json)
+                        
+                        # Route to appropriate service based on queue type
+                        if self.service_type == "document":
+                            self.document_service.process_s3_event(event_json)
+                        elif self.service_type == "video":
+                            self.video_service.process_s3_event(event_json)
+                        else:
+                            self.logger.error(f"Unknown service type: {self.service_type}")
+                            continue
+                        
+                        # Delete message after successful processing
                         self.sqs.delete_message(
                             QueueUrl=self.queue_url,
                             ReceiptHandle=message['ReceiptHandle']
                         )
-                        self.logger.info("Deleted message from queue.")
+                        self.logger.info("Message processed and deleted from queue")
+                        
                     except Exception as e:
                         self.logger.error(f"Error processing message: {e}")
 

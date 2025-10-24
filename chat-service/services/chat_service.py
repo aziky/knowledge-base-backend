@@ -28,83 +28,129 @@ class ChatService:
         self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         self.logger.info("Gemini model initialized")
 
-    def _search_similar_chunks(self, query, document_ids=None, limit=5, similarity_threshold=0.2):
+    def _search_similar_chunks(self, query, document_ids=None, video_ids=None, limit=5, similarity_threshold=0.2):
         """
-        Search for similar document chunks based on query vector similarity.
+        Search for similar chunks in both document_chunks and video_chunks based on query vector similarity.
         
         Args:
             query (str): User's question
             document_ids (list, optional): Filter by list of document IDs if available
+            video_ids (list, optional): Filter by list of video IDs if available
             limit (int): Maximum number of chunks to return
             similarity_threshold (float): Minimum similarity score (0-1)
             
         Returns:
-            list: List of similar document chunks with content and metadata
+            list: List of similar chunks (both documents and videos) with content and metadata
         """
         try:
             # Step 1: Convert query to embedding vector
             query_embedding = self.embedding_model.encode([query])[0].tolist()
-            self.logger.info(f"Searching: '{query}' | Threshold: {similarity_threshold} | Documents: {len(document_ids) if document_ids else 'ALL'}")
+            self.logger.info(f"Searching: '{query}' | Threshold: {similarity_threshold} | Documents: {len(document_ids) if document_ids else 'ALL'} | Videos: {len(video_ids) if video_ids else 'ALL'}")
 
-            # Step 2: Build vector similarity search query
-            # Strategy: Get top K most similar chunks, filter by threshold in application layer
-            where_clause = "1=1"
-            if document_ids and len(document_ids) > 0:
-                # Use ANY with explicit UUID casting for array matching in PostgreSQL
-                where_clause += " AND document_id = ANY(CAST(:document_ids AS uuid[]))"
-            
-            similarity_query = sql_text(f"""
-                SELECT 
-                    chunk_id,
-                    document_id,
-                    content,
-                    chunk_index,
-                    metadata,
-                    (1 - (embedding <=> CAST(:query_vector AS vector))) as similarity
-                FROM kb_chat.document_chunks
-                WHERE {where_clause}
-                ORDER BY embedding <=> CAST(:query_vector AS vector)
-                LIMIT :limit
-            """)
+            # Convert embedding to PostgreSQL vector format
+            vector_str = '[' + ','.join(map(str, query_embedding)) + ']'
 
             def _search_chunks():
-                # Convert embedding to PostgreSQL vector format
-                vector_str = '[' + ','.join(map(str, query_embedding)) + ']'
+                all_chunks = []
 
-                # Build query parameters
-                query_params = {
+                # Search document chunks
+                doc_where_clause = "1=1"
+                if document_ids and len(document_ids) > 0:
+                    doc_where_clause += " AND document_id = ANY(CAST(:document_ids AS uuid[]))"
+                
+                doc_similarity_query = sql_text(f"""
+                    SELECT 
+                        chunk_id,
+                        document_id as source_id,
+                        'document' as source_type,
+                        content,
+                        chunk_index,
+                        metadata,
+                        (1 - (embedding <=> CAST(:query_vector AS vector))) as similarity
+                    FROM kb_chat.document_chunks
+                    WHERE {doc_where_clause}
+                    ORDER BY embedding <=> CAST(:query_vector AS vector)
+                    LIMIT :limit
+                """)
+
+                doc_params = {
                     "query_vector": vector_str,
                     "limit": limit
                 }
                 
-                # Add document_ids to params if provided
                 if document_ids and len(document_ids) > 0:
-                    query_params["document_ids"] = document_ids
+                    doc_params["document_ids"] = document_ids
 
-                result = db.session.execute(similarity_query, query_params)
+                doc_result = db.session.execute(doc_similarity_query, doc_params)
 
-                chunks = []
-                for row in result:
-                    similarity = float(row.similarity)
-                    
+                for row in doc_result:
                     chunk_data = {
                         "chunk_id": str(row.chunk_id),
-                        "document_id": str(row.document_id),
+                        "source_id": str(row.source_id),
+                        "source_type": row.source_type,
                         "content": row.content,
                         "chunk_index": row.chunk_index,
                         "metadata": json.loads(row.metadata) if row.metadata else {},
                         "similarity": float(row.similarity)
                     }
-                    chunks.append(chunk_data)
+                    all_chunks.append(chunk_data)
 
-                # Filter by threshold at application layer
-                filtered_chunks = [c for c in chunks if c['similarity'] >= similarity_threshold]
+                # Search video chunks
+                video_where_clause = "1=1"
+                if video_ids and len(video_ids) > 0:
+                    video_where_clause += " AND video_id = ANY(CAST(:video_ids AS uuid[]))"
+                
+                video_similarity_query = sql_text(f"""
+                    SELECT 
+                        chunk_id,
+                        video_id as source_id,
+                        'video' as source_type,
+                        transcript_chunk as content,
+                        chunk_index,
+                        metadata,
+                        (1 - (embedding <=> CAST(:query_vector AS vector))) as similarity
+                    FROM kb_chat.video_chunks
+                    WHERE {video_where_clause}
+                    ORDER BY embedding <=> CAST(:query_vector AS vector)
+                    LIMIT :limit
+                """)
+
+                video_params = {
+                    "query_vector": vector_str,
+                    "limit": limit
+                }
+                
+                if video_ids and len(video_ids) > 0:
+                    video_params["video_ids"] = video_ids
+
+                video_result = db.session.execute(video_similarity_query, video_params)
+
+                for row in video_result:
+                    chunk_data = {
+                        "chunk_id": str(row.chunk_id),
+                        "source_id": str(row.source_id),
+                        "source_type": row.source_type,
+                        "content": row.content,
+                        "chunk_index": row.chunk_index,
+                        "metadata": row.metadata if row.metadata else {},
+                        "similarity": float(row.similarity)
+                    }
+                    all_chunks.append(chunk_data)
+
+                # Sort all chunks by similarity and take top N
+                all_chunks.sort(key=lambda x: x['similarity'], reverse=True)
+                all_chunks = all_chunks[:limit]
+
+                # Filter by threshold
+                filtered_chunks = [c for c in all_chunks if c['similarity'] >= similarity_threshold]
                 
                 # Summary logging
                 if filtered_chunks:
-                    self.logger.info(f"Found {len(filtered_chunks)} chunks (similarity: {filtered_chunks[0]['similarity']:.3f} - {filtered_chunks[-1]['similarity']:.3f})")
+                    doc_count = sum(1 for c in filtered_chunks if c['source_type'] == 'document')
+                    video_count = sum(1 for c in filtered_chunks if c['source_type'] == 'video')
+                    self.logger.info(f"Found {len(filtered_chunks)} chunks ({doc_count} docs, {video_count} videos) | similarity: {filtered_chunks[0]['similarity']:.3f} - {filtered_chunks[-1]['similarity']:.3f}")
                 else:
-                    self.logger.info(f"No chunks passed threshold {similarity_threshold} (returned {len(chunks)} from DB)")
+                    self.logger.info(f"No chunks passed threshold {similarity_threshold}")
                 
                 return filtered_chunks
 
@@ -132,8 +178,10 @@ class ChatService:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
             similarity_score = chunk.get('similarity', 0)
+            source_type = chunk.get('source_type', 'document')
             content = chunk['content'].strip()
-            context_parts.append(f"[Document {i}] (Relevance: {similarity_score:.2f})\n{content}")
+            source_label = "Video Transcript" if source_type == 'video' else "Document"
+            context_parts.append(f"[{source_label} {i}] (Relevance: {similarity_score:.2f})\n{content}")
 
         combined_context = "\n\n".join(context_parts)
         self.logger.info(f"Generated context: {len(chunks)} chunks, {len(combined_context)} chars")
@@ -208,25 +256,27 @@ Answer:"""
                 "model": "gemini-2.5-flash"
             }
 
-    def process_chat_query(self, user_question, document_ids=None, user_id=None):
+    def process_chat_query(self, user_question, document_ids=None, video_ids=None, project_id=None):
         """
         Main method to process a chat query with RAG (Retrieval-Augmented Generation).
         
         Args:
             user_question (str): User's question
             document_ids (list, optional): List of document IDs for filtering
-            user_id (str, optional): User ID for logging
+            video_ids (list, optional): List of video IDs for filtering
+            project_id (str, optional): Project ID for logging
             
         Returns:
             dict: Complete response with answer, sources, and metadata
         """
         try:
-            self.logger.info(f"Chat Query: '{user_question[:100]}...' | User: {user_id}")
+            self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id}")
 
-            # Step 1: Search for similar chunks
+            # Step 1: Search for similar chunks (both documents and videos)
             similar_chunks = self._search_similar_chunks(
                 query=user_question,
                 document_ids=document_ids,
+                video_ids=video_ids,
                 limit=5,
                 similarity_threshold=0.2
             )
@@ -246,7 +296,8 @@ Answer:"""
                 "sources": [
                     {
                         "chunk_id": chunk["chunk_id"],
-                        "document_id": chunk["document_id"],
+                        "source_id": chunk["source_id"],
+                        "source_type": chunk["source_type"],
                         "similarity": chunk["similarity"],
                         "content_preview": chunk["content"][:200] + "..." if len(chunk["content"]) > 200 else chunk["content"]
                     }
@@ -256,8 +307,9 @@ Answer:"""
                     "query": user_question,
                     "chunks_found": len(similar_chunks),
                     "gemini_status": gemini_response["status"],
-                    "user_id": user_id,
-                    "document_ids": document_ids
+                    "project_id": project_id,
+                    "document_ids": document_ids,
+                    "video_ids": video_ids
                 }
             }
 
