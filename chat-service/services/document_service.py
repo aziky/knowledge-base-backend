@@ -133,6 +133,7 @@ class DocumentService:
 
             except Exception as e:
                 self.logger.error(f"Error processing S3 event: {e}")
+                raise
 
     def download_file(self, bucket, key):
         try:
@@ -178,7 +179,7 @@ class DocumentService:
 
         except Exception as e:
             self.logger.error(f"Error extracting text from document {key}: {e}")
-            return None
+            raise
 
     def _extract_from_pdf(self, file_path):
         """

@@ -13,6 +13,7 @@ def chat_controller(api):
     # Request models
     chat_request_model = chat_ns.model('ChatRequest', {
         'document_ids': fields.List(fields.String, required=False, description='List of document IDs for filtering (optional)'),
+        'video_ids': fields.List(fields.String, required=False, description='List of video IDs for filtering (optional)'),
         'question': fields.String(required=True, description='User question to be answered')
     })
     
@@ -63,6 +64,8 @@ def chat_controller(api):
                 
                 user_question = data.get('question', '').strip()
                 document_ids = data.get('document_ids', [])
+                video_ids = data.get('video_ids', [])
+                project_id = data.get('project_id', None)
                 
                 # Validate required fields
                 if not user_question:
@@ -72,10 +75,15 @@ def chat_controller(api):
                 if document_ids and not isinstance(document_ids, list):
                     document_ids = [document_ids]
                 
+                if video_ids and not isinstance(video_ids, list):
+                    video_ids = [video_ids]
+                
                 # Process the chat query
                 response = chat_service.process_chat_query(
                     user_question=user_question,
-                    document_ids=document_ids if document_ids else None
+                    document_ids=document_ids,
+                    video_ids=video_ids,
+                    project_id=project_id
                 )
                 
                 return response, 200

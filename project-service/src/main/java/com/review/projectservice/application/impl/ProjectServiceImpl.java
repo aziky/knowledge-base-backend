@@ -7,7 +7,9 @@ import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
 import com.review.common.enumration.Template;
 import com.review.common.shared.CustomUserDetails;
+import com.review.projectservice.api.dto.document.DocumentRes;
 import com.review.projectservice.api.dto.project.*;
+import com.review.projectservice.api.dto.video.VideoRes;
 import com.review.projectservice.application.ProjectService;
 import com.review.projectservice.application.RedisService;
 import com.review.projectservice.application.SQSService;
@@ -242,9 +244,17 @@ public class ProjectServiceImpl implements ProjectService {
                 return ApiResponse.success(res, "Document found successfully");
             }
             case "video" -> {
-//                Video video = videoRepository.findByFilePath(path)
-//                        .orElseThrow(() -> new EntityNotFoundException("Video not found"));
-                return ApiResponse.success("Video found successfully");
+                Video video = videoRepository.findByFilePathAndIsActiveTrue(path)
+                        .orElseThrow(() -> new EntityNotFoundException("Video not found"));
+                VideoRes res = new VideoRes(
+                        video.getId(),
+                        video.getName(),
+                        video.getFilePath(),
+                        video.getFileType(),
+                        video.getProjectId(),
+                        video.getUploadedAt()
+                );
+                return ApiResponse.success(res, "Document found successfully");
             }
             default -> throw new IllegalArgumentException("Invalid type");
         }
