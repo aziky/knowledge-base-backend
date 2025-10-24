@@ -307,7 +307,7 @@ Answer:"""
                     "query": user_question,
                     "chunks_found": len(similar_chunks),
                     "gemini_status": gemini_response["status"],
-                    "user_id": user_id,
+                    "project_id": project_id,
                     "document_ids": document_ids,
                     "video_ids": video_ids
                 }
