@@ -33,34 +33,11 @@ spring:
       sqs:
         region: ${AWS_REGION}
         email-queue: ${AWS_SQS_EMAIL_QUEUE}
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-
-
-eureka:
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-  instance:
-    prefer-ip-address: true
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}
   issuer: ${JWT_ISSUER}
   duration: ${JWT_DURATION}
-
-openapi:
-  server-url: http://localhost:7071/user-service/api
 
 springdoc:
   api-docs:
@@ -73,7 +50,3 @@ springdoc:
     default-model-expand-depth: 10
     display-operation-id: true
 
-
-host:
-  backend-host: http://localhost:7070/user-service/api
-  handle-verification-url: /auth/verify-account

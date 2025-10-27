@@ -17,6 +17,7 @@
         <module>user-service</module>
         <module>project-service</module>
         <module>gateway-service</module>
+        <module>eureka-server</module>
 <!--        <module>document-service</module>-->
 <!--        <module>chatbot-service</module>-->
         <module>common-library</module>
