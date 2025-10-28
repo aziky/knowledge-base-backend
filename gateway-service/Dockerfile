@@ -5,13 +5,13 @@ WORKDIR /app
 COPY . /app
 
 # Build only user-service and its dependency: common
-RUN mvn clean package -DskipTests -f /app/pom.xml -pl project-service,common-library
+RUN mvn clean package -DskipTests -f /app/pom.xml -pl gateway-service,common-library
 
 FROM eclipse-temurin:21-jre
 WORKDIR /usr/src/app
-COPY --from=builder /app/project-service/target/project-service-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /app/gateway-service/target/gateway-service-0.0.1-SNAPSHOT.jar app.jar
 #COPY .env .env
 
 # Expose port
-EXPOSE 7072
+EXPOSE 7070
 ENTRYPOINT ["java", "-jar", "app.jar"]

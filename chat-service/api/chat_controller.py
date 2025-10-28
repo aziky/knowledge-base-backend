@@ -20,7 +20,6 @@ def chat_controller(api):
     # Response models
     source_model = chat_ns.model('Source', {
         'chunk_id': fields.String(description='ID of the source document chunk'),
-        'document_id': fields.String(description='ID of the source document'),
         'similarity': fields.Float(description='Similarity score (0-1)'),
         'content_preview': fields.String(description='Preview of the source content')
     })
@@ -29,8 +28,9 @@ def chat_controller(api):
         'query': fields.String(description='Original user query'),
         'chunks_found': fields.Integer(description='Number of relevant chunks found'),
         'gemini_status': fields.String(description='Status of Gemini API call'),
-        'user_id': fields.String(description='User ID'),
-        'document_ids': fields.List(fields.String, description='Document IDs used for filtering')
+        'project_id': fields.String(description='Project ID'),
+        'document_ids': fields.List(fields.String, description='Document IDs used for filtering'),
+        'video_ids': fields.List(fields.String, description='Video IDs used for filtering'),
     })
     
     chat_response_model = chat_ns.model('ChatResponse', {
@@ -81,9 +81,9 @@ def chat_controller(api):
                 # Process the chat query
                 response = chat_service.process_chat_query(
                     user_question=user_question,
+                    project_id=project_id,
                     document_ids=document_ids,
                     video_ids=video_ids,
-                    project_id=project_id
                 )
                 
                 return response, 200

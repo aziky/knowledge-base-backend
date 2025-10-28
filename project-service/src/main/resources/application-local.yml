@@ -1,0 +1,40 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+openapi:
+  server-url: http://localhost:7072/project-service/api
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: methods
+    tags-sorter: alpha
+    display-request-duration: true
+    default-model-expand-depth: 10
+    display-operation-id: true
+
+
+eureka:
+  client:
+    enabled: false
+
+host:
+  frontend-host: http://localhost:3000/verified-successfully
+  backend-host: http://localhost:7070/project-service/api
+  verified-invitation: /project/verified-invitation
+
+
+internal:
+  service:
+    secret: ${INTERNAL_SERVICE_SECRET}

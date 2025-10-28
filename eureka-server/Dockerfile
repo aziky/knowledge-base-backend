@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . /app
 
 # Build only eureka-server and its dependency: common
-RUN mvn clean package -DskipTests -f /app/pom.xml -pl eureka-server,common
+RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /usr/src/app

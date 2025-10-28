@@ -6,6 +6,7 @@ from sqlalchemy import text as sql_text
 import os
 from dotenv import load_dotenv
 import json
+import requests
 
 
 class ChatService:
@@ -27,6 +28,71 @@ class ChatService:
         genai.configure(api_key=self.gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         self.logger.info("Gemini model initialized")
+
+        # Project Service configuration
+        self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
+        self.api_secret = os.getenv("INTERNAL_API_SECRET")
+
+    def _get_project_details(self, project_id):
+        """
+        Call Project Service API to get project details including document and video IDs.
+        
+        Args:
+            project_id (str): Project UUID
+            
+        Returns:
+            dict: Project details with document_ids and video_ids lists
+            
+        Raises:
+            Exception: If API call fails
+        """
+        api_url = f"{self.project_service_url}/project/{project_id}/details"
+        headers = {
+            "X-Internal-Secret": self.api_secret,
+            "Accept": "application/json"
+        }
+
+        self.logger.info(f"Fetching project details from: {api_url}")
+
+        try:
+            response = requests.get(api_url, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            api_data = response.json()
+            project_data = api_data.get('data', {})
+
+            # Extract document IDs from documents list (only COMPLETED status)
+            documents = project_data.get('documents', [])
+            document_ids = [
+                doc['id'] for doc in documents 
+                if doc.get('status') == 'COMPLETED'
+            ]
+
+            # Extract video IDs from videos list (only COMPLETED status)
+            videos = project_data.get('videos', [])
+            video_ids = [
+                video['id'] for video in videos 
+                if video.get('status') == 'COMPLETED'
+            ]
+
+            self.logger.info(
+                f"Project {project_id}: {len(document_ids)} documents, {len(video_ids)} videos"
+            )
+
+            return {
+                "document_ids": document_ids,
+                "video_ids": video_ids,
+                "project_name": project_data.get('projectName'),
+                "description": project_data.get('description')
+            }
+
+        except requests.exceptions.HTTPError as http_err:
+            self.logger.error(f"HTTP error fetching project details: {http_err}")
+            raise
+
+        except requests.exceptions.RequestException as req_err:
+            self.logger.error(f"Error fetching project details: {req_err}")
+            raise
 
     def _search_similar_chunks(self, query, document_ids=None, video_ids=None, limit=5, similarity_threshold=0.2):
         """
@@ -256,21 +322,27 @@ Answer:"""
                 "model": "gemini-2.5-flash"
             }
 
-    def process_chat_query(self, user_question, document_ids=None, video_ids=None, project_id=None):
+    def process_chat_query(self, user_question, project_id=None, document_ids=None, video_ids=None):
         """
         Main method to process a chat query with RAG (Retrieval-Augmented Generation).
         
         Args:
             user_question (str): User's question
-            document_ids (list, optional): List of document IDs for filtering
-            video_ids (list, optional): List of video IDs for filtering
-            project_id (str, optional): Project ID for logging
+            project_id (str): Project ID (required to fetch documents and videos)
+            document_ids (list, optional): Override document IDs (if not provided, fetched from project)
+            video_ids (list, optional): Override video IDs (if not provided, fetched from project)
             
         Returns:
             dict: Complete response with answer, sources, and metadata
         """
         try:
             self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id}")
+
+            # Fetch project details if document_ids or video_ids not provided
+            if project_id:
+                project_details = self._get_project_details(project_id)
+                document_ids =  project_details.get("document_ids", [])
+                video_ids = project_details.get("video_ids", [])
 
             # Step 1: Search for similar chunks (both documents and videos)
             similar_chunks = self._search_similar_chunks(
@@ -324,5 +396,6 @@ Answer:"""
                 "metadata": {
                     "error": str(e),
                     "status": "error"
-                }
-            }
+
+
+            }                }               
