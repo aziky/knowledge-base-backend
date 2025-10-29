@@ -26,4 +26,9 @@ public class UserController {
         return ResponseEntity.ok(userService.getUsersProfile(listUserId));
     }
 
+    @GetMapping()
+    public ResponseEntity<?> getAllUsers(@RequestParam (required = false) String name) {
+        return ResponseEntity.ok(userService.getAllUser(name));
+    }
+
 }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
+import java.util.List;
 
 public interface ProjectService {
 
@@ -14,7 +15,7 @@ public interface ProjectService {
 
     ApiResponse<?> getAllProject(Pageable pageable);
 
-    ApiResponse<Void> sendInvitation(UUID projectId, CreateInvitationReq request);
+    ApiResponse<Void> sendInvitation(UUID projectId, List<CreateInvitationReq> requests);
 
     ApiResponse<Void> removeUserFromProject(UUID projectId, UUID userId);
 

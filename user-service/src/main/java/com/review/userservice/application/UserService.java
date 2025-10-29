@@ -12,5 +12,6 @@ public interface UserService {
 
     ApiResponse<List<GetUserRes>> getUsersProfile(List<UUID> userIds);
 
+    ApiResponse<?> getAllUser(String name);
 
 }

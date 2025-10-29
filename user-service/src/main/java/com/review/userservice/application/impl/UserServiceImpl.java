@@ -59,4 +59,32 @@ public class UserServiceImpl implements UserService {
         return ApiResponse.success(results);
     }
 
+
+    @Override
+    public ApiResponse<?> getAllUser(String name) {
+        log.info("Fetching users; searchName: {}", name);
+
+        List<User> listUser;
+        if (name != null && !name.trim().isEmpty()) {
+            String trimmed = name.trim();
+            listUser = userRepository.findAllByFullNameContainingIgnoreCaseAndIsActiveTrue(trimmed);
+        } else {
+            listUser = userRepository.findAllByIsActiveTrue();
+        }
+
+        List<GetUserRes> results = listUser.stream()
+                .map(u -> GetUserRes.builder()
+                        .id(u.getId())
+                        .email(u.getEmail())
+                        .fullName(u.getFullName())
+                        .build())
+                .toList();
+
+        String msg = (name != null && !name.trim().isEmpty())
+                ? "Fetched users matching name successfully"
+                : "Fetched all users successfully";
+
+        return ApiResponse.success(results, msg);
+    }
+
 }

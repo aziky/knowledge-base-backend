@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.view.RedirectView;
 
 import java.util.UUID;
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -45,9 +46,9 @@ public class ProjectController {
     @PostMapping("/{projectId}/invite")
     public ResponseEntity<?> inviteUserToProject(
             @PathVariable UUID projectId,
-            @RequestBody CreateInvitationReq request
+            @RequestBody List<CreateInvitationReq> requestList
             ) {
-        return ResponseEntity.ok(projectService.sendInvitation(projectId, request));
+        return ResponseEntity.ok(projectService.sendInvitation(projectId, requestList));
     }
 
     @GetMapping("/verified-invitation/{token}")

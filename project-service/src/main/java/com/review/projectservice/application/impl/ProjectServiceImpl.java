@@ -83,12 +83,14 @@ public class ProjectServiceImpl implements ProjectService {
 
         ProjectMember projectMember = new ProjectMember();
         projectMember.setProjectId(project.getId());
-        projectMember.setUserId(UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
+        projectMember.setUserId(SecurityUtil.getCurrentUser().getUserId());
         projectMember.setProjectRole(ProjectRole.CREATOR.name());
         projectMemberRepository.save(projectMember);
         log.info("Saving project member successfully");
 
-        return ApiResponse.success("Project created successfully");
+        return ApiResponse.success(
+                new CreateProjectRes(project.getId(), project.getName(), "Project created successfully")
+        );
     }
 
     @Override
@@ -100,11 +102,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public ApiResponse<Void> sendInvitation(UUID projectId, CreateInvitationReq request) {
+    public ApiResponse<Void> sendInvitation(UUID projectId, List<CreateInvitationReq> request) {
         log.info("Start send invitation for projectId: {} with request: {}", projectId, request);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
-        sendInvitationEmail(project, request);
+        request.parallelStream()
+                .forEach(res -> sendInvitationEmail(project, res));
         return ApiResponse.success("Invitation sent successfully");
     }
 
@@ -309,7 +312,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             Map<String, String> payload = new HashMap<>();
             payload.put("inviteeName", request.fullName());
-            payload.put("inviterName", currentUser.getFullName());
+            payload.put("inviterName", request.fullName());
             payload.put("inviterEmail", currentUser.getUsername());
             payload.put("projectName", project.getName());
             payload.put("userRole", ProjectRole.valueOf(request.role()).name());
