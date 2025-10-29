@@ -9,7 +9,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,29 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         return ApiResponse.success(getUserRes);
+    }
+
+    @Override
+    public ApiResponse<List<GetUserRes>> getUsersProfile(List<UUID> userIds) {
+        log.info("Fetching user profiles for userIds: {}", userIds);
+
+        Iterable<User> usersIterable = userRepository.findAllById(userIds);
+        Map<UUID, User> userById = StreamSupport.stream(usersIterable.spliterator(), false)
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        List<GetUserRes> results = userIds.stream()
+                .filter(userById::containsKey)
+                .map(id -> {
+                    User u = userById.get(id);
+                    return GetUserRes.builder()
+                            .id(u.getId())
+                            .email(u.getEmail())
+                            .fullName(u.getFullName())
+                            .build();
+                })
+                .toList();
+
+        return ApiResponse.success(results);
     }
 
 }
