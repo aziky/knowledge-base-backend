@@ -1,7 +1,9 @@
 package com.review.projectservice.application.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.review.common.dto.request.NotificationMessage;
+import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
@@ -31,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +42,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,14 +57,13 @@ public class ProjectServiceImpl implements ProjectService {
     private final HostProperties hostProperties;
     private final SQSService sqsService;
     private final SQSProperties sqsProperties;
-    private final UserClient userClient;
     private final RedisService redisService;
     private final DocumentRepository documentRepository;
     private final FolderRepository folderRepository;
     private final VideoRepository videoRepository;
     private final S3ServiceImpl s3Service;
+    private final UserClient userClient; // injected user-service client
     private final ObjectMapper objectMapper;
-
 
     @Override
     @Transactional
@@ -139,6 +142,39 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
 
+        List<ProjectMember> memberEntities = projectMemberRepository.findAllByProjectId(projectId);
+
+        List<UUID> userIds = memberEntities.stream()
+                .map(ProjectMember::getUserId)
+                .toList();
+
+        Map<UUID, GetUserRes> emailByUserId = new HashMap<>();
+        try {
+            ResponseEntity<ApiResponse<List<GetUserRes>>> resp = userClient.getUsersProfile(userIds);
+            ApiResponse<List<GetUserRes>> apiResp = resp != null ? resp.getBody() : null;
+            if (apiResp != null && apiResp.data() != null) {
+                for (GetUserRes u : apiResp.data()) {
+                    if (u != null && u.id() != null) {
+                        emailByUserId.put(u.id(), u);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch user emails from user-service, proceeding without emails: {}", e.getMessage());
+        }
+
+        // map members to DTO including email
+        var members = memberEntities.stream()
+                .map(m -> new ProjectDetailRes.MemberInfo(
+                        m.getUserId(),
+                        emailByUserId.get(m.getUserId()).email(),
+                        emailByUserId.get(m.getUserId()).fullName(),
+                        m.getProjectRole(),
+                        m.getJoinedAt(),
+                        m.getRemovedAt()
+                ))
+                .toList();
+
         var folders = folderRepository.findAllByProjectId(projectId).stream()
                 .map(f -> new ProjectDetailRes.FolderInfo(
                         f.getId(),
@@ -153,6 +189,7 @@ public class ProjectServiceImpl implements ProjectService {
                         d.getName(),
                         d.getFileType(),
                         d.getUploadedAt(),
+                        d.getUploadedBy(),
                         d.getStatus()
                 ))
                 .toList();
@@ -163,6 +200,7 @@ public class ProjectServiceImpl implements ProjectService {
                         v.getName(),
                         v.getFileType(),
                         v.getUploadedAt(),
+                        v.getUploadedBy(),
                         v.getStatus()
                 ))
                 .toList();
@@ -172,6 +210,7 @@ public class ProjectServiceImpl implements ProjectService {
                 project.getName(),
                 project.getDescription(),
                 project.getCreatedAt(),
+                members,
                 folders,
                 documents,
                 videos
