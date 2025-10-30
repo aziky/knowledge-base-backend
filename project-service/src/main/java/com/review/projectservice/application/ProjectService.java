@@ -3,6 +3,7 @@ package com.review.projectservice.application;
 import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
+import com.review.projectservice.api.dto.project.DeleteFileReq;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,5 +27,8 @@ public interface ProjectService {
     ApiResponse<?> uploadFile(UUID projectId, MultipartFile[] files);
 
     ApiResponse<?> searchEntityByPath(String path, String type);
+
+    ApiResponse<?> deleteListFile(UUID projectId, List<DeleteFileReq> listFileReq);
+
 
 }
