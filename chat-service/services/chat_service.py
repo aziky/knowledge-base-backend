@@ -94,7 +94,7 @@ class ChatService:
             self.logger.error(f"Error fetching project details: {req_err}")
             raise
 
-    def _search_similar_chunks(self, query, document_ids=None, video_ids=None, limit=5, similarity_threshold=0.2):
+    def _search_similar_chunks(self, query, document_ids=None, video_ids=None, limit=5, similarity_threshold=0.7):
         """
         Search for similar chunks in both document_chunks and video_chunks based on query vector similarity.
         
@@ -350,7 +350,7 @@ Answer:"""
                 document_ids=document_ids,
                 video_ids=video_ids,
                 limit=5,
-                similarity_threshold=0.2
+                similarity_threshold=0.7
             )
 
             # Step 2: Generate context from chunks

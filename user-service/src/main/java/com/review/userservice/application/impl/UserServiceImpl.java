@@ -73,6 +73,7 @@ public class UserServiceImpl implements UserService {
         }
 
         List<GetUserRes> results = listUser.stream()
+//                .filter(u -> u.getFullName() != null)
                 .map(u -> GetUserRes.builder()
                         .id(u.getId())
                         .email(u.getEmail())
