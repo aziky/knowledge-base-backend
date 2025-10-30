@@ -302,6 +302,41 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    @Override
+    @Transactional
+    public ApiResponse<?> deleteListFile(UUID projectId, List<DeleteFileReq> listFileReq) {
+        log.info("Deleting files for projectId: {} with fileIds: {}", projectId, listFileReq);
+
+        List<UUID> videoIds = listFileReq.stream()
+                .filter(req -> "VIDEO".equalsIgnoreCase(req.fileType()))
+                .map(DeleteFileReq::id)
+                .toList();
+
+        List<UUID> documentIds = listFileReq.stream()
+                .filter(req -> "DOCUMENT".equalsIgnoreCase(req.fileType()))
+                .map(DeleteFileReq::id)
+                .toList();
+
+        // Handle videos
+        if (!videoIds.isEmpty()) {
+            List<Video> videos = videoRepository.findAllById(videoIds);
+            videos.forEach(video -> video.setIsActive(false));
+            videoRepository.saveAll(videos);
+            log.info("Set {} videos inactive", videos.size());
+        }
+
+        // Handle documents
+        if (!documentIds.isEmpty()) {
+            List<Document> documents = documentRepository.findAllById(documentIds);
+            documents.forEach(document -> document.setIsActive(false));
+            documentRepository.saveAll(documents);
+            log.info("Set {} documents inactive", documents.size());
+        }
+
+        return ApiResponse.success("Files deleted successfully");
+    }
+
+
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {
         try {
             log.info("Sending email verification to {}", request.email());
