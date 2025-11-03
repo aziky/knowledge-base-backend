@@ -18,3 +18,4 @@ tiktoken>=0.6.0
 sentence-transformers~=2.7.0
 google-generativeai>=0.3.0
 openai-whisper>=20231117
+PyJWT>=2.0.0
