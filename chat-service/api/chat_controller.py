@@ -1,5 +1,6 @@
 from flask_restx import Resource, fields
 from flask import request
+from config.token_config import token_required
 from services.chat_service import ChatService
 
 
@@ -39,11 +40,12 @@ def chat_controller(api):
         'metadata': fields.Nested(metadata_model, description='Additional metadata about the query')
     })
 
-    @chat_ns.route('/')
+    @chat_ns.route('')
     class ChatResource(Resource):
 
         @chat_ns.expect(chat_request_model)
         @chat_ns.marshal_with(chat_response_model)
+        @token_required
         def post(self):
             """
             Process a chat query using RAG (Retrieval-Augmented Generation)

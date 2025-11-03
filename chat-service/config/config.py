@@ -14,7 +14,11 @@ db = SQLAlchemy()
 def create_app(): 
     # Initialize server app like tom cat
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={r"/*": {
+    "origins": ["http://localhost:5173"],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
     
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
     db.init_app(app)
