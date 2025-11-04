@@ -8,6 +8,10 @@ import json
 import requests
 from flask import request
 from services.embedding_service import SentenceTransformerEmbeddings
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.schema import HumanMessage, AIMessage
+import uuid
+from datetime import datetime, timedelta
 
 
 
@@ -39,6 +43,12 @@ class ChatService:
         # Project Service configuration
         self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
         self.api_secret = os.getenv("INTERNAL_API_SECRET")
+        
+        # Conversation memory storage
+        # In production, consider using Redis or database for persistence
+        self.conversations = {}  # conversation_id -> memory object
+        self.conversation_metadata = {}  # conversation_id -> metadata
+        self.conversation_timeout = timedelta(hours=24)  # Conversations expire after 24 hours
     
     def _get_document_vectorstore(self):
         """Get or create the document vector store"""
@@ -61,6 +71,105 @@ class ChatService:
                 use_jsonb=True,
             )
         return self.video_vectorstore
+
+    def create_conversation(self, project_id=None):
+        """
+        Create a new conversation session.
+        
+        Args:
+            project_id (str, optional): Project ID to associate with the conversation
+            
+        Returns:
+            str: Unique conversation ID
+        """
+        conversation_id = str(uuid.uuid4())
+        
+        # Initialize memory with a window of last 10 exchanges (20 messages total)
+        memory = ConversationBufferWindowMemory(
+            k=10,  # Keep last 10 exchanges
+            return_messages=True,
+            memory_key="chat_history"
+        )
+        
+        self.conversations[conversation_id] = memory
+        self.conversation_metadata[conversation_id] = {
+            "created_at": datetime.utcnow(),
+            "last_accessed": datetime.utcnow(),
+            "project_id": project_id,
+            "message_count": 0
+        }
+        
+        self.logger.info(f"Created conversation {conversation_id} for project {project_id}")
+        return conversation_id
+
+    def get_conversation_memory(self, conversation_id):
+        """
+        Get memory object for a conversation, cleaning up expired conversations.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            
+        Returns:
+            ConversationBufferWindowMemory or None: Memory object if found and valid
+        """
+        self._cleanup_expired_conversations()
+        
+        if conversation_id not in self.conversations:
+            self.logger.warning(f"Conversation {conversation_id} not found")
+            return None
+            
+        # Update last accessed time
+        self.conversation_metadata[conversation_id]["last_accessed"] = datetime.utcnow()
+        
+        return self.conversations[conversation_id]
+
+    def _cleanup_expired_conversations(self):
+        """Remove expired conversations to prevent memory leaks."""
+        current_time = datetime.utcnow()
+        expired_conversations = []
+        
+        for conv_id, metadata in self.conversation_metadata.items():
+            if current_time - metadata["last_accessed"] > self.conversation_timeout:
+                expired_conversations.append(conv_id)
+        
+        for conv_id in expired_conversations:
+            del self.conversations[conv_id]
+            del self.conversation_metadata[conv_id]
+            
+        if expired_conversations:
+            self.logger.info(f"Cleaned up {len(expired_conversations)} expired conversations")
+
+    def get_conversation_history(self, conversation_id):
+        """
+        Get formatted conversation history.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            
+        Returns:
+            str: Formatted conversation history
+        """
+        memory = self.get_conversation_memory(conversation_id)
+        if not memory:
+            return ""
+            
+        try:
+            messages = memory.chat_memory.messages
+            if not messages:
+                return ""
+                
+            history_parts = []
+            for message in messages:
+                if isinstance(message, HumanMessage):
+                    history_parts.append(f"Human: {message.content}")
+                elif isinstance(message, AIMessage):
+                    history_parts.append(f"Assistant: {message.content}")
+                    
+            return "\n".join(history_parts)
+            
+        except Exception as e:
+            self.logger.error(f"Error getting conversation history: {e}")
+            return ""
 
     def _get_project_details(self, project_id):
         """
@@ -252,32 +361,46 @@ class ChatService:
 
         return combined_context
 
-    def _create_enhanced_prompt(self, user_question, context):
+    def _create_enhanced_prompt(self, user_question, context, conversation_history=""):
         """
-        Create an enhanced prompt combining user question with retrieved context.
+        Create an enhanced prompt combining user question with retrieved context and conversation history.
         
         Args:
             user_question (str): Original user question
             context (str): Retrieved context from similar chunks
+            conversation_history (str): Previous conversation context
             
         Returns:
             str: Enhanced prompt for Gemini
         """
-        prompt = f"""You are a knowledgeable assistant with access to a knowledge base. Answer the user's question based on the provided context information.
-Context Information:
-{context}
-User Question: {user_question}
-Instructions:
-1. Answer based primarily on the provided context
-2. If the context doesn't contain enough information, clearly state what information is missing
-3. Be concise but comprehensive
-4. Include relevant details from the context
-5. If you're unsure about something, indicate your uncertainty
-6. Format your response clearly with proper paragraphs and structure
-7. Use bullet points or numbered lists when appropriate for better readability
-Answer:"""
+        prompt_parts = [
+            "You are a knowledgeable assistant with access to a knowledge base. Answer the user's question based on the provided context information and previous conversation."
+        ]
+        
+        if conversation_history:
+            prompt_parts.extend([
+                "\nPrevious Conversation:",
+                conversation_history,
+                "\n" + "="*50
+            ])
+            
+        prompt_parts.extend([
+            "\nRelevant Information:",
+            context,
+            f"\nUser Question: {user_question}",
+            "\nResponse Guidelines:",
+            "• Answer naturally and conversationally - avoid starting with phrases like 'Based on the provided context' or 'According to the information'",
+            "• Speak directly about the topic as if you're an expert explaining it to a colleague",
+            "• Use the conversation history to build upon previous exchanges naturally",
+            "• When referencing information from documents or videos, weave it seamlessly into your explanation",
+            "• If information is incomplete, say what you know and then mention what's missing",
+            "• Use a confident, helpful tone while being honest about limitations",
+            "• Structure your response clearly with paragraphs and lists when helpful",
+            "• Make it feel like a natural conversation, not a formal report",
+            "\nProvide a helpful, direct response:"
+        ])
 
-        return prompt
+        return "\n".join(prompt_parts)
 
     def _chat_with_gemini(self, enhanced_prompt):
         """
@@ -320,21 +443,38 @@ Answer:"""
                 "model": "gemini-2.5-flash"
             }
 
-    def process_chat_query(self, user_question, project_id=None, document_ids=None, video_ids=None):
+    def process_chat_query(self, user_question, project_id=None, document_ids=None, video_ids=None, conversation_id=None):
         """
-        Main method to process a chat query with RAG (Retrieval-Augmented Generation).
+        Main method to process a chat query with RAG (Retrieval-Augmented Generation) and conversation memory.
         
         Args:
             user_question (str): User's question
             project_id (str): Project ID (required to fetch documents and videos)
             document_ids (list, optional): Override document IDs (if not provided, fetched from project)
             video_ids (list, optional): Override video IDs (if not provided, fetched from project)
+            conversation_id (str, optional): Conversation ID for maintaining context
             
         Returns:
-            dict: Complete response with answer, sources, and metadata
+            dict: Complete response with answer, sources, metadata, and conversation_id
         """
         try:
-            self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id}")
+            self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id} | Conversation: {conversation_id}")
+
+            # Create new conversation if not provided
+            if not conversation_id:
+                conversation_id = self.create_conversation(project_id)
+                self.logger.info(f"Created new conversation: {conversation_id}")
+
+            # Get conversation memory
+            memory = self.get_conversation_memory(conversation_id)
+            if not memory:
+                # If conversation expired, create a new one
+                conversation_id = self.create_conversation(project_id)
+                memory = self.get_conversation_memory(conversation_id)
+                self.logger.info(f"Conversation expired, created new one: {conversation_id}")
+
+            # Get conversation history for context
+            conversation_history = self.get_conversation_history(conversation_id)
 
             # Fetch project details if document_ids or video_ids not provided
             if project_id:
@@ -357,15 +497,24 @@ Answer:"""
             # Step 2: Generate context from chunks
             context = self._generate_context_from_chunks(similar_chunks)
 
-            # Step 3: Create enhanced prompt
-            enhanced_prompt = self._create_enhanced_prompt(user_question, context)
+            # Step 3: Create enhanced prompt with conversation history
+            enhanced_prompt = self._create_enhanced_prompt(user_question, context, conversation_history)
 
             # Step 4: Get response from Gemini
             gemini_response = self._chat_with_gemini(enhanced_prompt)
 
-            # Step 5: Prepare final response
+            # Step 5: Save conversation to memory
+            memory.chat_memory.add_user_message(user_question)
+            memory.chat_memory.add_ai_message(gemini_response["answer"])
+            
+            # Update conversation metadata
+            self.conversation_metadata[conversation_id]["message_count"] += 2
+            self.conversation_metadata[conversation_id]["last_accessed"] = datetime.utcnow()
+
+            # Step 6: Prepare final response
             response = {
                 "answer": gemini_response["answer"],
+                "conversation_id": conversation_id,
                 "sources": [
                     {
                         "source_id": chunk["source_id"],
@@ -381,22 +530,23 @@ Answer:"""
                     "gemini_status": gemini_response["status"],
                     "project_id": project_id,
                     "document_ids": document_ids,
-                    "video_ids": video_ids
+                    "video_ids": video_ids,
+                    "conversation_message_count": self.conversation_metadata[conversation_id]["message_count"],
+                    "has_conversation_history": bool(conversation_history)
                 }
             }
 
-            self.logger.info(f"Query processed successfully")
+            self.logger.info(f"Query processed successfully with conversation context")
             return response
 
         except Exception as e:
             self.logger.error(f"Error processing query: {str(e)}")
             return {
                 "answer": "I encountered an error while processing your question. Please try again.",
+                "conversation_id": conversation_id if 'conversation_id' in locals() else None,
                 "sources": [],
                 "metadata": {
                     "error": str(e),
                     "status": "error"
-
-
                 }              
             }               
