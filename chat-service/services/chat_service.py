@@ -1,13 +1,13 @@
 import logging
 import google.generativeai as genai
-from sentence_transformers import SentenceTransformer
-from config.config import db
-from sqlalchemy import text as sql_text
+from langchain_postgres import PGVector
+from langchain_core.documents import Document
 import os
 from dotenv import load_dotenv
 import json
 import requests
 from flask import request
+from services.embedding_service import SentenceTransformerEmbeddings
 
 
 
@@ -19,8 +19,13 @@ class ChatService:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
         # Initialize embedding model (same as EmbeddingService for consistency)
-        self.embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        self.embedding_model = SentenceTransformerEmbeddings("sentence-transformers/all-MiniLM-L6-v2")
         self.logger.info("Embedding model loaded for chat service")
+
+        # Initialize vector stores (will be created when needed)
+        self.document_vectorstore = None
+        self.video_vectorstore = None
+        self.connection_string = os.getenv("DATABASE_URL")
 
         # Initialize Gemini
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
@@ -34,6 +39,28 @@ class ChatService:
         # Project Service configuration
         self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
         self.api_secret = os.getenv("INTERNAL_API_SECRET")
+    
+    def _get_document_vectorstore(self):
+        """Get or create the document vector store"""
+        if self.document_vectorstore is None:
+            self.document_vectorstore = PGVector(
+                embeddings=self.embedding_model,
+                connection=self.connection_string,
+                collection_name="document_chunks",
+                use_jsonb=True,
+            )
+        return self.document_vectorstore
+    
+    def _get_video_vectorstore(self):
+        """Get or create the video vector store"""
+        if self.video_vectorstore is None:
+            self.video_vectorstore = PGVector(
+                embeddings=self.embedding_model,
+                connection=self.connection_string,
+                collection_name="video_chunks",
+                use_jsonb=True,
+            )
+        return self.video_vectorstore
 
     def _get_project_details(self, project_id):
         """
@@ -100,7 +127,7 @@ class ChatService:
 
     def _search_similar_chunks(self, query, document_ids=None, video_ids=None, limit=5, similarity_threshold=0.2):
         """
-        Search for similar chunks in both document_chunks and video_chunks based on query vector similarity.
+        Search for similar chunks in both document_chunks and video_chunks using LangChain vector stores.
         
         Args:
             query (str): User's question
@@ -113,127 +140,87 @@ class ChatService:
             list: List of similar chunks (both documents and videos) with content and metadata
         """
         try:
-            # Step 1: Convert query to embedding vector
-            query_embedding = self.embedding_model.encode([query])[0].tolist()
             self.logger.info(f"Searching: '{query}' | Threshold: {similarity_threshold} | Documents: {len(document_ids) if document_ids else 'ALL'} | Videos: {len(video_ids) if video_ids else 'ALL'}")
 
-            # Convert embedding to PostgreSQL vector format
-            vector_str = '[' + ','.join(map(str, query_embedding)) + ']'
+            all_chunks = []
 
-            def _search_chunks():
-                all_chunks = []
-
-                # Search document chunks
-                if document_ids:
-                    self.logger.info(f"Searching document chunks...")
-                    doc_where_clause = "1=1"
-                    if document_ids and len(document_ids) > 0:
-                        doc_where_clause += " AND document_id = ANY(CAST(:document_ids AS uuid[]))"
+            # Search document chunks
+            if document_ids:
+                self.logger.info(f"Searching document chunks...")
+                doc_vectorstore = self._get_document_vectorstore()
+                
+                # Build filter for document IDs
+                doc_filter = None
+                if document_ids and len(document_ids) > 0:
+                    doc_filter = {"document_id": {"$in": document_ids}}
+                
+                # Perform similarity search
+                doc_results = doc_vectorstore.similarity_search_with_score(
+                    query=query,
+                    k=limit,
+                    filter=doc_filter
+                )
+                
+                for doc, score in doc_results:
+                    # Convert distance to similarity (higher is better)
+                    similarity = 1.0 - score if score <= 1.0 else 0.0
                     
-                    doc_similarity_query = sql_text(f"""
-                        SELECT 
-                            chunk_id,
-                            document_id as source_id,
-                            'document' as source_type,
-                            content,
-                            chunk_index,
-                            metadata,
-                            (1 - (embedding <=> CAST(:query_vector AS vector))) as similarity
-                        FROM kb_chat.document_chunks
-                        WHERE {doc_where_clause}
-                        ORDER BY embedding <=> CAST(:query_vector AS vector)
-                        LIMIT :limit
-                    """)
-
-                    doc_params = {
-                        "query_vector": vector_str,
-                        "limit": limit
-                    }
-                    
-                    if document_ids and len(document_ids) > 0:
-                        doc_params["document_ids"] = document_ids
-
-                    doc_result = db.session.execute(doc_similarity_query, doc_params)
-
-                    for row in doc_result:
+                    if similarity >= similarity_threshold:
                         chunk_data = {
-                            "chunk_id": str(row.chunk_id),
-                            "source_id": str(row.source_id),
-                            "source_type": row.source_type,
-                            "content": row.content,
-                            "chunk_index": row.chunk_index,
-                            "metadata": json.loads(row.metadata) if row.metadata else {},
-                            "similarity": float(row.similarity)
+                            "source_id": doc.metadata.get("document_id"),
+                            "source_type": "document",
+                            "content": doc.page_content,
+                            "chunk_index": doc.metadata.get("chunk_index", 0),
+                            "metadata": doc.metadata,
+                            "similarity": similarity
                         }
                         all_chunks.append(chunk_data)
 
-                # Search video chunks
-                if video_ids:
-                    self.logger.info(f"Searching video chunks...")
-                    video_where_clause = "1=1"
-                    if video_ids and len(video_ids) > 0:
-                        video_where_clause += " AND video_id = ANY(CAST(:video_ids AS uuid[]))"
+            # Search video chunks
+            if video_ids:
+                self.logger.info(f"Searching video chunks...")
+                video_vectorstore = self._get_video_vectorstore()
+                
+                # Build filter for video IDs
+                video_filter = None
+                if video_ids and len(video_ids) > 0:
+                    video_filter = {"video_id": {"$in": video_ids}}
+                
+                # Perform similarity search
+                video_results = video_vectorstore.similarity_search_with_score(
+                    query=query,
+                    k=limit,
+                    filter=video_filter
+                )
+                
+                for doc, score in video_results:
+                    # Convert distance to similarity (higher is better)
+                    similarity = 1.0 - score if score <= 1.0 else 0.0
                     
-                    video_similarity_query = sql_text(f"""
-                        SELECT 
-                            chunk_id,
-                            video_id as source_id,
-                            'video' as source_type,
-                            transcript_chunk as content,
-                            chunk_index,
-                            metadata,
-                            (1 - (embedding <=> CAST(:query_vector AS vector))) as similarity
-                        FROM kb_chat.video_chunks
-                        WHERE {video_where_clause}
-                        ORDER BY embedding <=> CAST(:query_vector AS vector)
-                        LIMIT :limit
-                    """)
-
-                    video_params = {
-                        "query_vector": vector_str,
-                        "limit": limit
-                    }
-                    
-                    if video_ids and len(video_ids) > 0:
-                        video_params["video_ids"] = video_ids
-
-                    video_result = db.session.execute(video_similarity_query, video_params)
-
-                    for row in video_result:
+                    if similarity >= similarity_threshold:
                         chunk_data = {
-                            "chunk_id": str(row.chunk_id),
-                            "source_id": str(row.source_id),
-                            "source_type": row.source_type,
-                            "content": row.content,
-                            "chunk_index": row.chunk_index,
-                            "metadata": row.metadata if row.metadata else {},
-                            "similarity": float(row.similarity)
+                            "source_id": doc.metadata.get("video_id"),
+                            "source_type": "video",
+                            "content": doc.page_content,
+                            "chunk_index": doc.metadata.get("chunk_index", 0),
+                            "metadata": doc.metadata,
+                            "similarity": similarity
                         }
                         all_chunks.append(chunk_data)
 
-                # Sort all chunks by similarity and take top N
-                all_chunks.sort(key=lambda x: x['similarity'], reverse=True)
-                for c in all_chunks:
-                    print(f"Chunk {c['chunk_id']} => similarity: {c['similarity']:.4f}")
+            # Sort all chunks by similarity and take top N
+            all_chunks.sort(key=lambda x: x['similarity'], reverse=True)
+            all_chunks = all_chunks[:limit]
 
-                all_chunks = all_chunks[:limit]
-
-                # Filter by threshold
-                filtered_chunks = [c for c in all_chunks if c['similarity'] >= similarity_threshold]
-                
-                # Summary logging
-                if filtered_chunks:
-                    doc_count = sum(1 for c in filtered_chunks if c['source_type'] == 'document')
-                    video_count = sum(1 for c in filtered_chunks if c['source_type'] == 'video')
-                    self.logger.info(f"Found {len(filtered_chunks)} chunks ({doc_count} docs, {video_count} videos) | similarity: {filtered_chunks[0]['similarity']:.3f} - {filtered_chunks[-1]['similarity']:.3f}")
-                else:
-                    self.logger.info(f"No chunks passed threshold {similarity_threshold}")
-                
-                return filtered_chunks
-
-            # Execute search
-            chunks = _search_chunks()
-            return chunks
+            # Summary logging
+            if all_chunks:
+                doc_count = sum(1 for c in all_chunks if c['source_type'] == 'document')
+                video_count = sum(1 for c in all_chunks if c['source_type'] == 'video')
+                self.logger.info(f"Found {len(all_chunks)} chunks ({doc_count} docs, {video_count} videos) | similarity: {all_chunks[0]['similarity']:.3f} - {all_chunks[-1]['similarity']:.3f}")
+            else:
+                self.logger.info(f"No chunks passed threshold {similarity_threshold}")
+            
+            return all_chunks
 
         except Exception as e:
             self.logger.error(f"Error searching chunks: {str(e)}")
@@ -381,7 +368,6 @@ Answer:"""
                 "answer": gemini_response["answer"],
                 "sources": [
                     {
-                        "chunk_id": chunk["chunk_id"],
                         "source_id": chunk["source_id"],
                         "source_type": chunk["source_type"],
                         "similarity": chunk["similarity"],
@@ -412,4 +398,5 @@ Answer:"""
                     "status": "error"
 
 
-            }                }               
+                }              
+            }               

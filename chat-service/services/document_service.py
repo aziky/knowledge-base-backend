@@ -121,8 +121,9 @@ class DocumentService:
                         self.logger.info(f"Extracted text from {key}:\n{extracted_text}")
                         document = self._call_project_service_get_document(key, "document")
                         document_id = document.get("documentId")
+                        project_id = document.get("projectId")  # Get project_id from response
                         
-                        self.chunk_extracted_text(document_id, extracted_text)
+                        self.chunk_extracted_text(document_id, project_id, extracted_text)
                         self._update_document_status_after_embedding(document_id, status="COMPLETED")
                     else:
                         self.logger.warning(f"No text extracted from document: s3://{bucket}/{key}")
@@ -270,12 +271,17 @@ class DocumentService:
             self.logger.error(f"Error extracting table: {e}")
             return ""
 
-    def chunk_extracted_text(self, document_id, text):
+    def chunk_extracted_text(self, document_id, project_id, text):
         """
         Delegate chunking + embedding process to EmbeddingService.
+        
+        Args:
+            document_id (str): Document ID
+            project_id (str): Project ID that contains this document
+            text (str): Extracted text content
         """
         try:
-            num_chunks = self.embedding_service.chunk_and_embed(document_id, text)
+            num_chunks = self.embedding_service.chunk_and_embed(document_id, text, project_id)
             self.logger.info(f"Document {document_id}: {num_chunks} chunks embedded and saved.")
             return num_chunks
         except Exception as e:
