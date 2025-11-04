@@ -8,7 +8,15 @@ import json
 import requests
 from flask import request
 from services.embedding_service import SentenceTransformerEmbeddings
-
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.schema import HumanMessage, AIMessage
+import uuid
+from datetime import datetime, timedelta
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from config.config import db
+from repository.entitty.conversation import Conversation
+from repository.entitty.message import Message
 
 
 class ChatService:
@@ -39,6 +47,12 @@ class ChatService:
         # Project Service configuration
         self.project_service_url = os.getenv("PROJECT_SERVICE_URL", "http://localhost:7072/api")
         self.api_secret = os.getenv("INTERNAL_API_SECRET")
+        
+        # Conversation memory storage
+        # In production, consider using Redis or database for persistence
+        self.conversations = {}  # conversation_id -> memory object
+        self.conversation_metadata = {}  # conversation_id -> metadata
+        self.conversation_timeout = timedelta(hours=24)  # Conversations expire after 24 hours
     
     def _get_document_vectorstore(self):
         """Get or create the document vector store"""
@@ -61,6 +75,545 @@ class ChatService:
                 use_jsonb=True,
             )
         return self.video_vectorstore
+
+    def create_conversation(self, project_id=None):
+        """
+        Create a new conversation session.
+        
+        Args:
+            project_id (str, optional): Project ID to associate with the conversation
+            
+        Returns:
+            str: Unique conversation ID
+        """
+        conversation_id = str(uuid.uuid4())
+        
+        # Initialize memory with a window of last 10 exchanges (20 messages total)
+        memory = ConversationBufferWindowMemory(
+            k=10,  # Keep last 10 exchanges
+            return_messages=True,
+            memory_key="chat_history"
+        )
+        
+        self.conversations[conversation_id] = memory
+        self.conversation_metadata[conversation_id] = {
+            "created_at": datetime.utcnow(),
+            "last_accessed": datetime.utcnow(),
+            "project_id": project_id,
+            "message_count": 0
+        }
+        
+        self.logger.info(f"Created conversation {conversation_id} for project {project_id}")
+        return conversation_id
+
+    def get_conversation_memory(self, conversation_id):
+        """
+        Get memory object for a conversation, cleaning up expired conversations.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            
+        Returns:
+            ConversationBufferWindowMemory or None: Memory object if found and valid
+        """
+        self._cleanup_expired_conversations()
+        
+        if conversation_id not in self.conversations:
+            self.logger.warning(f"Conversation {conversation_id} not found")
+            return None
+            
+        # Update last accessed time
+        self.conversation_metadata[conversation_id]["last_accessed"] = datetime.utcnow()
+        
+        return self.conversations[conversation_id]
+
+    def _cleanup_expired_conversations(self):
+        """Remove expired conversations to prevent memory leaks."""
+        current_time = datetime.utcnow()
+        expired_conversations = []
+        
+        for conv_id, metadata in self.conversation_metadata.items():
+            if current_time - metadata["last_accessed"] > self.conversation_timeout:
+                expired_conversations.append(conv_id)
+        
+        for conv_id in expired_conversations:
+            del self.conversations[conv_id]
+            del self.conversation_metadata[conv_id]
+            
+        if expired_conversations:
+            self.logger.info(f"Cleaned up {len(expired_conversations)} expired conversations")
+
+    def get_conversation_history(self, conversation_id):
+        """
+        Get formatted conversation history.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            
+        Returns:
+            str: Formatted conversation history
+        """
+        memory = self.get_conversation_memory(conversation_id)
+        if not memory:
+            return ""
+            
+        try:
+            messages = memory.chat_memory.messages
+            if not messages:
+                return ""
+                
+            history_parts = []
+            for message in messages:
+                if isinstance(message, HumanMessage):
+                    history_parts.append(f"Human: {message.content}")
+                elif isinstance(message, AIMessage):
+                    history_parts.append(f"Assistant: {message.content}")
+                    
+            return "\n".join(history_parts)
+            
+        except Exception as e:
+            self.logger.error(f"Error getting conversation history: {e}")
+            return ""
+
+    def store_conversation_to_database(self, conversation_id, user_id, user_question, bot_answer, 
+                                      title=None, gemini_metadata=None):
+        """
+        Store a chat conversation exchange (user question + bot response) to the database.
+        Creates a new conversation record if it doesn't exist, then adds both messages.
+        
+        Args:
+            conversation_id (str): Unique conversation ID
+            user_id (str): UUID of the user
+            user_question (str): User's question/message
+            bot_answer (str): Bot's response
+            title (str, optional): Conversation title (auto-generated if not provided)
+            gemini_metadata (dict, optional): Metadata about the Gemini response (model, tokens, etc.)
+            
+        Returns:
+            dict: Result with success status and stored message IDs
+        """
+        try:
+            # Check if conversation exists
+            conversation = Conversation.query.filter_by(id=conversation_id).first()
+            
+            if not conversation:
+                # Create new conversation
+                conversation = Conversation(
+                    id=conversation_id,
+                    user_id=user_id,
+                    title=title,
+                    status='ACTIVE',
+                    started_at=datetime.utcnow()
+                )
+                db.session.add(conversation)
+                self.logger.info(f"Created new conversation {conversation_id} for user {user_id}")
+            
+            # Store user message
+            user_message = Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conversation_id,
+                sender_type='USER',
+                content=user_question,
+                created_at=datetime.utcnow(),
+                message_metadata=None
+            )
+            db.session.add(user_message)
+            
+            # Store bot message
+            bot_message = Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conversation_id,
+                sender_type='BOT',
+                content=bot_answer,
+                created_at=datetime.utcnow(),
+                message_metadata=gemini_metadata
+            )
+            db.session.add(bot_message)
+            
+            # Commit all changes
+            db.session.commit()
+            
+            self.logger.info(f"Stored conversation exchange for {conversation_id}: "
+                           f"user_msg={user_message.id}, bot_msg={bot_message.id}")
+            
+            return {
+                'success': True,
+                'conversation_id': conversation_id,
+                'user_message_id': user_message.id,
+                'bot_message_id': bot_message.id,
+                'message': 'Conversation stored successfully'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            self.logger.error(f"Error storing conversation to database: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'conversation_id': conversation_id
+            }
+
+    def get_conversation_from_database(self, conversation_id, user_id=None):
+        """
+        Retrieve a conversation and all its messages from the database.
+        
+        Args:
+            conversation_id (str): Conversation ID to retrieve
+            user_id (str, optional): User ID for authorization check
+            
+        Returns:
+            dict: Conversation data with messages, or None if not found
+        """
+        try:
+            # Build query
+            query = Conversation.query.filter_by(id=conversation_id)
+            
+            # Add user filter if provided (for authorization)
+            if user_id:
+                query = query.filter_by(user_id=user_id)
+            
+            conversation = query.first()
+            
+            if not conversation:
+                self.logger.warning(f"Conversation {conversation_id} not found")
+                return None
+            
+            # Get all messages for this conversation, ordered by creation time
+            messages = Message.query.filter_by(
+                conversation_id=conversation_id
+            ).order_by(Message.created_at.asc()).all()
+            
+            return {
+                'conversation': conversation.to_dict(),
+                'messages': [msg.to_dict() for msg in messages],
+                'message_count': len(messages)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving conversation from database: {str(e)}")
+            return None
+
+    def get_user_conversations(self, user_id, status='ACTIVE', limit=20, offset=0):
+        """
+        Get all conversations for a specific user.
+        
+        Args:
+            user_id (str): User ID
+            status (str, optional): Filter by status (ACTIVE, CLOSED, ARCHIVED)
+            limit (int): Maximum number of conversations to return
+            offset (int): Number of conversations to skip (for pagination)
+            
+        Returns:
+            dict: List of conversations with message counts
+        """
+        try:
+            query = Conversation.query.filter_by(user_id=user_id, status=status)
+            query = query.order_by(Conversation.started_at.desc())
+            
+            # Apply pagination
+            total_count = query.count()
+            conversations = query.limit(limit).offset(offset).all()
+            
+            result = []
+            for conv in conversations:
+                
+                customer_conv = {
+                    'conversation_id': str(conv.id) if conv.id else None,
+                    'title': conv.title,
+                    'status': conv.status,
+                    'created_at': conv.started_at.isoformat() if conv.started_at else None
+                }
+                result.append(customer_conv)
+
+            return {
+                'conversations': result,
+                'total_count': total_count,
+                'limit': limit,
+                'offset': offset,
+                'has_more': (offset + limit) < total_count
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving user conversations: {str(e)}")
+            return {
+                'conversations': [],
+                'total_count': 0,
+                'error': str(e)
+            }
+
+    def summarize_conversation(self, conversation_id):
+        """
+        Summarize a conversation using Gemini AI and store the summary in the database.
+        
+        Args:
+            conversation_id (str): Conversation ID to summarize
+            
+        Returns:
+            dict: Response with summary status and data
+        """
+        try:
+            self.logger.info(f"Starting conversation summary for {conversation_id}")
+            
+            # Get conversation memory and validate
+            memory = self.get_conversation_memory(conversation_id)
+            if not memory:
+                return {
+                    "success": False,
+                    "error": "Conversation not found or expired",
+                    "conversation_id": conversation_id
+                }
+            
+            # Get conversation metadata
+            metadata = self.conversation_metadata.get(conversation_id, {})
+            if metadata.get("message_count", 0) < 2:
+                return {
+                    "success": False,
+                    "error": "Conversation too short to summarize (needs at least 1 exchange)",
+                    "conversation_id": conversation_id
+                }
+            
+            # Get full conversation history
+            conversation_history = self.get_conversation_history(conversation_id)
+            if not conversation_history:
+                return {
+                    "success": False,
+                    "error": "No conversation history found",
+                    "conversation_id": conversation_id
+                }
+            
+            # Create summary prompt for Gemini
+            summary_prompt = self._create_summary_prompt(conversation_history)
+            
+            # Get summary from Gemini
+            summary_response = self._get_conversation_summary_from_gemini(summary_prompt)
+            
+            if summary_response["status"] != "success":
+                return {
+                    "success": False,
+                    "error": f"Failed to generate summary: {summary_response.get('error', 'Unknown error')}",
+                    "conversation_id": conversation_id
+                }
+            
+            # Store summary in database
+            summary_id = self._store_conversation_summary(
+                conversation_id=conversation_id,
+                summary_text=summary_response["summary"],
+                project_id=metadata.get("project_id"),
+                message_count=metadata.get("message_count", 0),
+                created_at=metadata.get("created_at"),
+                summarized_at=datetime.utcnow()
+            )
+            
+            self.logger.info(f"Conversation {conversation_id} summarized successfully with ID {summary_id}")
+            
+            return {
+                "success": True,
+                "summary_id": summary_id,
+                "conversation_id": conversation_id,
+                "summary": summary_response["summary"],
+                "message_count": metadata.get("message_count", 0),
+                "project_id": metadata.get("project_id")
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error summarizing conversation {conversation_id}: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "conversation_id": conversation_id
+            }
+
+    def _create_summary_prompt(self, conversation_history):
+        """
+        Create a prompt for Gemini to summarize the conversation.
+        
+        Args:
+            conversation_history (str): Full conversation history
+            
+        Returns:
+            str: Summary prompt for Gemini
+        """
+        prompt = f"""Please provide a comprehensive summary of this conversation between a human and an AI assistant. 
+
+CONVERSATION HISTORY:
+{conversation_history}
+
+SUMMARY REQUIREMENTS:
+• Capture the main topics discussed and key questions asked
+• Include important information or insights that were shared
+• Note any specific documents, videos, or resources that were referenced
+• Highlight key decisions, conclusions, or action items if any
+• Keep the summary concise but comprehensive (2-4 paragraphs)
+• Use a professional, informative tone
+• Focus on the substantive content rather than conversational pleasantries
+
+Please provide only the summary without any preamble or additional commentary."""
+
+        return prompt
+
+    def _get_conversation_summary_from_gemini(self, summary_prompt):
+        """
+        Get conversation summary from Gemini AI.
+        
+        Args:
+            summary_prompt (str): Prompt for generating summary
+            
+        Returns:
+            dict: Response with summary and status
+        """
+        try:
+            self.logger.info("Requesting conversation summary from Gemini...")
+            
+            response = self.gemini_model.generate_content(summary_prompt)
+            
+            if response.candidates and response.candidates[0].content:
+                summary = response.candidates[0].content.parts[0].text.strip()
+                self.logger.info(f"Gemini summary generated ({len(summary)} chars)")
+                
+                return {
+                    "summary": summary,
+                    "status": "success",
+                    "model": "gemini-2.5-flash"
+                }
+            else:
+                self.logger.warning("Empty summary response from Gemini")
+                return {
+                    "summary": "",
+                    "status": "empty_response",
+                    "error": "No summary generated"
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Gemini summary error: {str(e)}")
+            return {
+                "summary": "",
+                "status": "error",
+                "error": str(e)
+            }
+
+    def _store_conversation_summary(self, conversation_id, summary_text, project_id=None, 
+                                  message_count=0, created_at=None, summarized_at=None):
+        """
+        Store conversation summary in the database.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            summary_text (str): Generated summary
+            project_id (str, optional): Associated project ID
+            message_count (int): Number of messages in conversation
+            created_at (datetime, optional): When conversation was created
+            summarized_at (datetime, optional): When summary was generated
+            
+        Returns:
+            str: Summary ID from database
+        """
+        try:
+            # Create database connection
+            conn = psycopg2.connect(self.connection_string)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Create table if it doesn't exist
+            create_table_query = """
+            CREATE TABLE IF NOT EXISTS conversation_summaries (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                conversation_id VARCHAR(255) UNIQUE NOT NULL,
+                project_id VARCHAR(255),
+                summary_text TEXT NOT NULL,
+                message_count INTEGER DEFAULT 0,
+                conversation_created_at TIMESTAMP,
+                summarized_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_conversation_summaries_conversation_id 
+            ON conversation_summaries(conversation_id);
+            
+            CREATE INDEX IF NOT EXISTS idx_conversation_summaries_project_id 
+            ON conversation_summaries(project_id);
+            """
+            
+            cursor.execute(create_table_query)
+            
+            # Insert or update summary
+            upsert_query = """
+            INSERT INTO conversation_summaries 
+            (conversation_id, project_id, summary_text, message_count, conversation_created_at, summarized_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (conversation_id) 
+            DO UPDATE SET 
+                summary_text = EXCLUDED.summary_text,
+                message_count = EXCLUDED.message_count,
+                summarized_at = EXCLUDED.summarized_at,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING id;
+            """
+            
+            cursor.execute(upsert_query, (
+                conversation_id,
+                project_id,
+                summary_text,
+                message_count,
+                created_at,
+                summarized_at or datetime.utcnow()
+            ))
+            
+            summary_id = cursor.fetchone()['id']
+            
+            # Commit changes
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            self.logger.info(f"Stored conversation summary with ID: {summary_id}")
+            return str(summary_id)
+            
+        except Exception as e:
+            self.logger.error(f"Error storing conversation summary: {str(e)}")
+            if 'conn' in locals():
+                conn.rollback()
+                cursor.close()
+                conn.close()
+            raise
+
+    def get_conversation_summary(self, conversation_id):
+        """
+        Retrieve stored conversation summary from database.
+        
+        Args:
+            conversation_id (str): Conversation ID
+            
+        Returns:
+            dict: Summary data or None if not found
+        """
+        try:
+            conn = psycopg2.connect(self.connection_string)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+            SELECT id, conversation_id, project_id, summary_text, message_count,
+                   conversation_created_at, summarized_at, created_at, updated_at
+            FROM conversation_summaries 
+            WHERE conversation_id = %s
+            """
+            
+            cursor.execute(query, (conversation_id,))
+            result = cursor.fetchone()
+            
+            cursor.close()
+            conn.close()
+            
+            if result:
+                return dict(result)
+            else:
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error retrieving conversation summary: {str(e)}")
+            if 'conn' in locals():
+                cursor.close()
+                conn.close()
+            return None
 
     def _get_project_details(self, project_id):
         """
@@ -252,32 +805,46 @@ class ChatService:
 
         return combined_context
 
-    def _create_enhanced_prompt(self, user_question, context):
+    def _create_enhanced_prompt(self, user_question, context, conversation_history=""):
         """
-        Create an enhanced prompt combining user question with retrieved context.
+        Create an enhanced prompt combining user question with retrieved context and conversation history.
         
         Args:
             user_question (str): Original user question
             context (str): Retrieved context from similar chunks
+            conversation_history (str): Previous conversation context
             
         Returns:
             str: Enhanced prompt for Gemini
         """
-        prompt = f"""You are a knowledgeable assistant with access to a knowledge base. Answer the user's question based on the provided context information.
-Context Information:
-{context}
-User Question: {user_question}
-Instructions:
-1. Answer based primarily on the provided context
-2. If the context doesn't contain enough information, clearly state what information is missing
-3. Be concise but comprehensive
-4. Include relevant details from the context
-5. If you're unsure about something, indicate your uncertainty
-6. Format your response clearly with proper paragraphs and structure
-7. Use bullet points or numbered lists when appropriate for better readability
-Answer:"""
+        prompt_parts = [
+            "You are a knowledgeable assistant with access to a knowledge base. Answer the user's question based on the provided context information and previous conversation."
+        ]
+        
+        if conversation_history:
+            prompt_parts.extend([
+                "\nPrevious Conversation:",
+                conversation_history,
+                "\n" + "="*50
+            ])
+            
+        prompt_parts.extend([
+            "\nRelevant Information:",
+            context,
+            f"\nUser Question: {user_question}",
+            "\nResponse Guidelines:",
+            "• Answer naturally and conversationally - avoid starting with phrases like 'Based on the provided context' or 'According to the information'",
+            "• Speak directly about the topic as if you're an expert explaining it to a colleague",
+            "• Use the conversation history to build upon previous exchanges naturally",
+            "• When referencing information from documents or videos, weave it seamlessly into your explanation",
+            "• If information is incomplete, say what you know and then mention what's missing",
+            "• Use a confident, helpful tone while being honest about limitations",
+            "• Structure your response clearly with paragraphs and lists when helpful",
+            "• Make it feel like a natural conversation, not a formal report",
+            "\nProvide a helpful, direct response:"
+        ])
 
-        return prompt
+        return "\n".join(prompt_parts)
 
     def _chat_with_gemini(self, enhanced_prompt):
         """
@@ -320,21 +887,39 @@ Answer:"""
                 "model": "gemini-2.5-flash"
             }
 
-    def process_chat_query(self, user_question, project_id=None, document_ids=None, video_ids=None):
+    def process_chat_query(self, user_question, user_id, project_id=None, document_ids=None, video_ids=None, conversation_id=None):
         """
-        Main method to process a chat query with RAG (Retrieval-Augmented Generation).
+        Main method to process a chat query with RAG (Retrieval-Augmented Generation) and conversation memory.
         
         Args:
             user_question (str): User's question
+            user_id (str): User ID from JWT token
             project_id (str): Project ID (required to fetch documents and videos)
             document_ids (list, optional): Override document IDs (if not provided, fetched from project)
             video_ids (list, optional): Override video IDs (if not provided, fetched from project)
+            conversation_id (str, optional): Conversation ID for maintaining context
             
         Returns:
-            dict: Complete response with answer, sources, and metadata
+            dict: Complete response with answer, sources, metadata, and conversation_id
         """
         try:
-            self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id}")
+            self.logger.info(f"Chat Query: '{user_question[:100]}...' | Project: {project_id} | Conversation: {conversation_id}")
+
+            # Create new conversation if not provided
+            if not conversation_id:
+                conversation_id = self.create_conversation(project_id)
+                self.logger.info(f"Created new conversation: {conversation_id}")
+
+            # Get conversation memory
+            memory = self.get_conversation_memory(conversation_id)
+            if not memory:
+                # If conversation expired, create a new one
+                conversation_id = self.create_conversation(project_id)
+                memory = self.get_conversation_memory(conversation_id)
+                self.logger.info(f"Conversation expired, created new one: {conversation_id}")
+
+            # Get conversation history for context
+            conversation_history = self.get_conversation_history(conversation_id)
 
             # Fetch project details if document_ids or video_ids not provided
             if project_id:
@@ -357,15 +942,44 @@ Answer:"""
             # Step 2: Generate context from chunks
             context = self._generate_context_from_chunks(similar_chunks)
 
-            # Step 3: Create enhanced prompt
-            enhanced_prompt = self._create_enhanced_prompt(user_question, context)
+            # Step 3: Create enhanced prompt with conversation history
+            enhanced_prompt = self._create_enhanced_prompt(user_question, context, conversation_history)
 
             # Step 4: Get response from Gemini
             gemini_response = self._chat_with_gemini(enhanced_prompt)
 
-            # Step 5: Prepare final response
+            # Step 5: Save conversation to memory
+            memory.chat_memory.add_user_message(user_question)
+            memory.chat_memory.add_ai_message(gemini_response["answer"])
+            
+            # Update conversation metadata
+            self.conversation_metadata[conversation_id]["message_count"] += 2
+            self.conversation_metadata[conversation_id]["last_accessed"] = datetime.utcnow()
+
+            # Step 5.5: Store conversation in database
+            gemini_metadata = {
+                "model": gemini_response.get("model", "gemini-2.5-flash"),
+                "status": gemini_response.get("status"),
+                "chunks_used": len(similar_chunks),
+                "project_id": project_id
+            }
+            
+            storage_result = self.store_conversation_to_database(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                user_question=user_question,
+                bot_answer=gemini_response["answer"],
+                title=f"{user_question[:50]}..." if len(user_question) > 50 else user_question,
+                gemini_metadata=gemini_metadata
+            )
+            
+            if not storage_result.get('success'):
+                self.logger.warning(f"Failed to store conversation to database: {storage_result.get('error')}")
+
+            # Step 6: Prepare final response
             response = {
                 "answer": gemini_response["answer"],
+                "conversation_id": conversation_id,
                 "sources": [
                     {
                         "source_id": chunk["source_id"],
@@ -381,22 +995,23 @@ Answer:"""
                     "gemini_status": gemini_response["status"],
                     "project_id": project_id,
                     "document_ids": document_ids,
-                    "video_ids": video_ids
+                    "video_ids": video_ids,
+                    "conversation_message_count": self.conversation_metadata[conversation_id]["message_count"],
+                    "has_conversation_history": bool(conversation_history)
                 }
             }
 
-            self.logger.info(f"Query processed successfully")
+            self.logger.info(f"Query processed successfully with conversation context")
             return response
 
         except Exception as e:
             self.logger.error(f"Error processing query: {str(e)}")
             return {
                 "answer": "I encountered an error while processing your question. Please try again.",
+                "conversation_id": conversation_id if 'conversation_id' in locals() else None,
                 "sources": [],
                 "metadata": {
                     "error": str(e),
                     "status": "error"
-
-
                 }              
             }               
