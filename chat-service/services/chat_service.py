@@ -253,7 +253,7 @@ class ChatService:
                 'conversation_id': conversation_id
             }
 
-    def get_conversation_from_database(self, conversation_id, user_id=None):
+    def get_conversation_from_database(self, conversation_id):
         """
         Retrieve a conversation and all its messages from the database.
         
@@ -267,10 +267,6 @@ class ChatService:
         try:
             # Build query
             query = Conversation.query.filter_by(id=conversation_id)
-            
-            # Add user filter if provided (for authorization)
-            if user_id:
-                query = query.filter_by(user_id=user_id)
             
             conversation = query.first()
             

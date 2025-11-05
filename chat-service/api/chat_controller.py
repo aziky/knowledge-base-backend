@@ -246,7 +246,7 @@ def chat_controller(api):
                     'message': str(e)
                 }, 500
 
-    @chat_ns.route('/history/<string:conversation_id>')
+    @chat_ns.route('/<string:conversation_id>')
     class ConversationHistoryResource(Resource):
         
         @chat_ns.marshal_with(chat_ns.model('ConversationHistory', {
@@ -273,8 +273,7 @@ def chat_controller(api):
                 
                 # Get conversation from database
                 conversation_data = chat_service.get_conversation_from_database(
-                    conversation_id=conversation_id.strip(),
-                    user_id=user_id
+                    conversation_id=conversation_id.strip()                
                 )
                 
                 if conversation_data:
