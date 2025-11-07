@@ -42,6 +42,7 @@ spring:
       s3:
         bucket-name: kb-bucket-personal-2025-10-09
         region: ${AWS_REGION}
+        endpoint: ${AWS_S3_ENDPOINT}
       sqs:
         region: ${AWS_REGION}
         email-queue: ${AWS_SQS_EMAIL_QUEUE}

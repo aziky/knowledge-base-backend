@@ -86,5 +86,13 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.deleteListFile(projectId, request));
     }
 
+    @GetMapping("/download/{filedId}")
+
+
+    public ResponseEntity<?> downloadFile(@PathVariable UUID filedId, @RequestParam String type) {
+        return ResponseEntity.ok(projectService.downloadFile(filedId, type));
+    }
+
+
 
 }
