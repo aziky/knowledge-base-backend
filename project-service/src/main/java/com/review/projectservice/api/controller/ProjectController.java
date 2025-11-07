@@ -4,6 +4,7 @@ import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.DeleteFileReq;
+import com.review.projectservice.api.dto.project.DeleteProjectReq;
 import com.review.projectservice.application.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -77,7 +78,7 @@ public class ProjectController {
     }
 
     @GetMapping("/path")
-    public ResponseEntity<ApiResponse<?>> test(@RequestParam String path, @RequestParam String type) {
+    public ResponseEntity<ApiResponse<?>> searchByPath(@RequestParam String path, @RequestParam String type) {
         return ResponseEntity.ok(projectService.searchEntityByPath(path, type));
     }
 
@@ -87,10 +88,13 @@ public class ProjectController {
     }
 
     @GetMapping("/download/{filedId}")
-
-
     public ResponseEntity<?> downloadFile(@PathVariable UUID filedId, @RequestParam String type) {
         return ResponseEntity.ok(projectService.downloadFile(filedId, type));
+    }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<?> deleteProject(@PathVariable UUID projectId, @RequestBody DeleteProjectReq request) {
+        return ResponseEntity.ok(projectService.deleteProject(projectId, request));
     }
 
 

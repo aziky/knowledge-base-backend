@@ -7,6 +7,7 @@ import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
+import com.review.common.enumration.Role;
 import com.review.common.enumration.Template;
 import com.review.common.shared.CustomUserDetails;
 import com.review.projectservice.api.dto.document.DocumentRes;
@@ -143,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ApiResponse<?> getProjectDetails(UUID projectId) {
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Project not found or inactive"));
 
         List<ProjectMember> memberEntities = projectMemberRepository.findAllByProjectId(projectId);
 
@@ -208,16 +209,28 @@ public class ProjectServiceImpl implements ProjectService {
                 ))
                 .toList();
 
-        var response = new ProjectDetailRes(
-                project.getId(),
-                project.getName(),
-                project.getDescription(),
-                project.getCreatedAt(),
-                members,
-                folders,
-                documents,
-                videos
-        );
+        ProjectDetailRes.MemberInfo creator = members.stream()
+                .filter(m -> m.role().equals(ProjectRole.CREATOR.name()))
+                .findFirst()
+                .orElse(null);
+
+
+        var response = ProjectDetailRes.builder()
+                .projectId(project.getId())
+                .projectName(project.getName())
+                .description(project.getDescription())
+                .createdAt(project.getCreatedAt())
+                .lockedBy(creator != null ? creator.email() : null)
+                .userRole(creator != null ? creator.role() : null)
+                .lockedAt(project.getLockedAt())
+                .lockedReason(project.getLockReason())
+                .status(project.getStatus())
+                .members(members)
+                .folders(folders)
+                .documents(documents)
+                .videos(videos)
+                .build();
+
 
         return ApiResponse.success(response, "Project details fetched successfully");
     }
@@ -357,6 +370,22 @@ public class ProjectServiceImpl implements ProjectService {
         Map<String, String> response = new HashMap<>();
         response.put("presignedUrl", presignedUrl);
         return ApiResponse.success(response, "Presigned URL generated successfully");
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<?> deleteProject(UUID projectId, DeleteProjectReq request) {
+        log.info("Deleting project with id: {}", projectId);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
+        project.setLockedBy(customUserDetails.getUserId());
+        project.setLockedAt(LocalDateTime.now());
+        project.setLockReason(request.lockReason());
+        project.setStatus(ProjectStatus.INACTIVE.name());
+        projectRepository.save(project);
+        return ApiResponse.success("Project deleted successfully");
     }
 
 
