@@ -30,5 +30,7 @@ public interface ProjectService {
 
     ApiResponse<?> deleteListFile(UUID projectId, List<DeleteFileReq> listFileReq);
 
+    ApiResponse<?> downloadFile(UUID fileId, String type);
+
 
 }

@@ -259,10 +259,9 @@ class ChatService:
         
         Args:
             conversation_id (str): Conversation ID to retrieve
-            user_id (str, optional): User ID for authorization check
             
         Returns:
-            dict: Conversation data with messages, or None if not found
+            dict: Conversation data with messages and raw objects for memory loading, or None if not found
         """
         try:
             # Build query
@@ -271,7 +270,7 @@ class ChatService:
             conversation = query.first()
             
             if not conversation:
-                self.logger.warning(f"Conversation {conversation_id} not found")
+                self.logger.warning(f"Conversation {conversation_id} not found in database")
                 return None
             
             # Get all messages for this conversation, ordered by creation time
@@ -280,7 +279,14 @@ class ChatService:
             ).order_by(Message.created_at.asc()).all()
             
             return {
-                'conversation': conversation.to_dict(),
+                'conversation': {
+                    'id': str(conversation.id) if conversation.id else None,
+                    'user_id': str(conversation.user_id) if conversation.user_id else None,
+                    'title': conversation.title,
+                    'status': conversation.status,
+                    'started_at': conversation.started_at.isoformat() if conversation.started_at else None,
+                    'ended_at': conversation.ended_at.isoformat() if conversation.ended_at else None
+                },
                 'messages': [msg.to_dict() for msg in messages],
                 'message_count': len(messages)
             }
@@ -906,13 +912,48 @@ Please provide only the summary without any preamble or additional commentary.""
                 conversation_id = self.create_conversation(project_id)
                 self.logger.info(f"Created new conversation: {conversation_id}")
 
-            # Get conversation memory
+            # Get conversation memory (check in-memory first)
             memory = self.get_conversation_memory(conversation_id)
+            
             if not memory:
-                # If conversation expired, create a new one
-                conversation_id = self.create_conversation(project_id)
-                memory = self.get_conversation_memory(conversation_id)
-                self.logger.info(f"Conversation expired, created new one: {conversation_id}")
+                # Memory not in cache - check if conversation exists in database
+                self.logger.info(f"Conversation {conversation_id} not in memory, checking database...")
+                db_conversation = self.get_conversation_from_database(conversation_id)
+                
+                if db_conversation:
+                    # Conversation exists in database - load it into memory
+                    self.logger.info(f"Found conversation {conversation_id} in database, loading into memory...")
+                    
+                    # Create new memory for this conversation
+                    memory = ConversationBufferWindowMemory(
+                        k=10,  # Keep last 10 exchanges
+                        return_messages=True,
+                        memory_key="chat_history"
+                    )
+                    
+                    # Load messages from database into memory
+                    messages = db_conversation.get('messages', [])
+                    for msg in messages:
+                        if msg['sender_type'] == 'USER':
+                            memory.chat_memory.add_user_message(msg['content'])
+                        elif msg['sender_type'] == 'BOT':
+                            memory.chat_memory.add_ai_message(msg['content'])
+                    
+                    # Store in memory cache
+                    self.conversations[conversation_id] = memory
+                    self.conversation_metadata[conversation_id] = {
+                        "created_at": db_conversation['conversation'].get('started_at'),
+                        "last_accessed": datetime.utcnow(),
+                        "project_id": project_id,
+                        "message_count": db_conversation.get('message_count', 0)
+                    }
+                    
+                    self.logger.info(f"Loaded {db_conversation.get('message_count', 0)} messages into memory for conversation {conversation_id}")
+                else:
+                    # Conversation doesn't exist in database either - create new one
+                    self.logger.info(f"Conversation {conversation_id} not found in database, creating new one...")
+                    conversation_id = self.create_conversation(project_id)
+                    memory = self.get_conversation_memory(conversation_id)
 
             # Get conversation history for context
             conversation_history = self.get_conversation_history(conversation_id)

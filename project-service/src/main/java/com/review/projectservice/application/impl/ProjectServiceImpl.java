@@ -336,6 +336,29 @@ public class ProjectServiceImpl implements ProjectService {
         return ApiResponse.success("Files deleted successfully");
     }
 
+    @Override
+    public ApiResponse<?> downloadFile(UUID fileId, String type) {
+        log.info("Generating presigned URL for file: {} of type: {}", fileId, type);
+        String filePath;
+        switch (type) {
+            case "video" -> {
+                Video video = videoRepository.findById(fileId)
+                        .orElseThrow(() -> new EntityNotFoundException("Video not found"));
+                filePath = video.getFilePath();
+            }
+            case "document" -> {
+                Document document = documentRepository.findById(fileId)
+                        .orElseThrow(() -> new EntityNotFoundException("Document not found"));
+                filePath = document.getFilePath();
+            }
+            default -> throw new IllegalArgumentException("Invalid type");
+        }
+        String presignedUrl = s3Service.getPresignedUrl(filePath);
+        Map<String, String> response = new HashMap<>();
+        response.put("presignedUrl", presignedUrl);
+        return ApiResponse.success(response, "Presigned URL generated successfully");
+    }
+
 
     private void sendInvitationEmail(Project project, CreateInvitationReq request) {
         try {
