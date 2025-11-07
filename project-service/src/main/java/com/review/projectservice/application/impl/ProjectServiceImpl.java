@@ -394,11 +394,23 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus().equals(ProjectStatus.ACTIVE.name())) {
             throw new IllegalArgumentException("Project is already active");
         }
-
+        project.setLockedAt(null);
         project.setStatus(ProjectStatus.ACTIVE.name());
         projectRepository.save(project);
         return ApiResponse.success("Project updated successfully");
 
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<?> updateProject(UUID projectId, UpdateProjectReq request) {
+        log.info("Updating project with id: {} and request: {}", projectId, request);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+        project.setName(request.name());
+        project.setDescription(request.description());
+        projectRepository.save(project);
+        return ApiResponse.success("Project updated successfully");
     }
 
 

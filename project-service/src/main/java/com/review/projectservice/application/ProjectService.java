@@ -35,4 +35,6 @@ public interface ProjectService {
 
     ApiResponse<?> activeProject(UUID projectId);
 
+    ApiResponse<?> updateProject(UUID projectId, UpdateProjectReq request);
+
 }

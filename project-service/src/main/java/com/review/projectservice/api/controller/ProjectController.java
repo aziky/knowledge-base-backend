@@ -4,6 +4,7 @@ import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.DeleteFileReq;
+import com.review.projectservice.api.dto.project.UpdateProjectReq;
 import com.review.projectservice.application.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -94,6 +95,11 @@ public class ProjectController {
     @DeleteMapping("/{projectId}")
     public ResponseEntity<?> deleteProject(@PathVariable UUID projectId) {
         return ResponseEntity.ok(projectService.deleteProject(projectId));
+    }
+
+    @PutMapping("/{projectId}")
+    public ResponseEntity<?> deactivateProject(@PathVariable UUID projectId, @RequestBody UpdateProjectReq request) {
+        return ResponseEntity.ok(projectService.updateProject(projectId, request));
     }
 
     @PatchMapping("/{projectId}")
