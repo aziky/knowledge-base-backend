@@ -1,13 +1,11 @@
 package com.review.projectservice.application.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.review.common.dto.request.NotificationMessage;
 import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
-import com.review.common.enumration.Role;
 import com.review.common.enumration.Template;
 import com.review.common.shared.CustomUserDetails;
 import com.review.projectservice.api.dto.document.DocumentRes;
@@ -374,7 +372,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public ApiResponse<?> deleteProject(UUID projectId, DeleteProjectReq request) {
+    public ApiResponse<?> deleteProject(UUID projectId) {
         log.info("Deleting project with id: {}", projectId);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
@@ -382,10 +380,25 @@ public class ProjectServiceImpl implements ProjectService {
         CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
         project.setLockedBy(customUserDetails.getUserId());
         project.setLockedAt(LocalDateTime.now());
-        project.setLockReason(request.lockReason());
         project.setStatus(ProjectStatus.INACTIVE.name());
         projectRepository.save(project);
         return ApiResponse.success("Project deleted successfully");
+    }
+
+    @Override
+    public ApiResponse<?> activeProject(UUID projectId) {
+        log.info("Updating project status with id: {}", projectId);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        if (project.getStatus().equals(ProjectStatus.ACTIVE.name())) {
+            throw new IllegalArgumentException("Project is already active");
+        }
+
+        project.setStatus(ProjectStatus.ACTIVE.name());
+        projectRepository.save(project);
+        return ApiResponse.success("Project updated successfully");
+
     }
 
 

@@ -1,10 +1,7 @@
 package com.review.projectservice.application;
 
 import com.review.common.dto.response.ApiResponse;
-import com.review.projectservice.api.dto.project.CreateInvitationReq;
-import com.review.projectservice.api.dto.project.CreateProjectReq;
-import com.review.projectservice.api.dto.project.DeleteFileReq;
-import com.review.projectservice.api.dto.project.DeleteProjectReq;
+import com.review.projectservice.api.dto.project.*;
 import jakarta.ws.rs.DELETE;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,6 +31,8 @@ public interface ProjectService {
 
     ApiResponse<?> downloadFile(UUID fileId, String type);
 
-    ApiResponse<?> deleteProject(UUID projectId, DeleteProjectReq request);
+    ApiResponse<?> deleteProject(UUID projectId);
+
+    ApiResponse<?> activeProject(UUID projectId);
 
 }
