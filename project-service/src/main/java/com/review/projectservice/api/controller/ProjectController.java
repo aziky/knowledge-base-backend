@@ -4,6 +4,7 @@ import com.review.common.dto.response.ApiResponse;
 import com.review.projectservice.api.dto.project.CreateInvitationReq;
 import com.review.projectservice.api.dto.project.CreateProjectReq;
 import com.review.projectservice.api.dto.project.DeleteFileReq;
+import com.review.projectservice.api.dto.project.UpdateProjectReq;
 import com.review.projectservice.application.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -14,8 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.view.RedirectView;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @RestController
@@ -77,7 +78,7 @@ public class ProjectController {
     }
 
     @GetMapping("/path")
-    public ResponseEntity<ApiResponse<?>> test(@RequestParam String path, @RequestParam String type) {
+    public ResponseEntity<ApiResponse<?>> searchByPath(@RequestParam String path, @RequestParam String type) {
         return ResponseEntity.ok(projectService.searchEntityByPath(path, type));
     }
 
@@ -87,10 +88,23 @@ public class ProjectController {
     }
 
     @GetMapping("/download/{filedId}")
-
-
     public ResponseEntity<?> downloadFile(@PathVariable UUID filedId, @RequestParam String type) {
         return ResponseEntity.ok(projectService.downloadFile(filedId, type));
+    }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<?> deleteProject(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.deleteProject(projectId));
+    }
+
+    @PutMapping("/{projectId}")
+    public ResponseEntity<?> deactivateProject(@PathVariable UUID projectId, @RequestBody UpdateProjectReq request) {
+        return ResponseEntity.ok(projectService.updateProject(projectId, request));
+    }
+
+    @PatchMapping("/{projectId}")
+    public ResponseEntity<?> activeProject(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.activeProject(projectId));
     }
 
 

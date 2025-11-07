@@ -46,6 +46,11 @@ spring:
       sqs:
         region: ${AWS_REGION}
         email-queue: ${AWS_SQS_EMAIL_QUEUE}
+
+  jackson:
+    date-format: dd-MM-yyyy HH:mm:ss
+    time-zone: Asia/Ho_Chi_Minh
+
 openapi:
   server-url: http://localhost:7072/project-service/api
 

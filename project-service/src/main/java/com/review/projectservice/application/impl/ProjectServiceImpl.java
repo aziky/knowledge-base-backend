@@ -1,6 +1,5 @@
 package com.review.projectservice.application.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.review.common.dto.request.NotificationMessage;
 import com.review.common.dto.request.user.GetUserRes;
@@ -143,7 +142,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ApiResponse<?> getProjectDetails(UUID projectId) {
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Project not found or inactive"));
 
         List<ProjectMember> memberEntities = projectMemberRepository.findAllByProjectId(projectId);
 
@@ -208,16 +207,28 @@ public class ProjectServiceImpl implements ProjectService {
                 ))
                 .toList();
 
-        var response = new ProjectDetailRes(
-                project.getId(),
-                project.getName(),
-                project.getDescription(),
-                project.getCreatedAt(),
-                members,
-                folders,
-                documents,
-                videos
-        );
+        ProjectDetailRes.MemberInfo creator = members.stream()
+                .filter(m -> m.role().equals(ProjectRole.CREATOR.name()))
+                .findFirst()
+                .orElse(null);
+
+
+        var response = ProjectDetailRes.builder()
+                .projectId(project.getId())
+                .projectName(project.getName())
+                .description(project.getDescription())
+                .createdAt(project.getCreatedAt())
+                .lockedBy(creator != null ? creator.email() : null)
+                .userRole(creator != null ? creator.role() : null)
+                .lockedAt(project.getLockedAt())
+                .lockedReason(project.getLockReason())
+                .status(project.getStatus())
+                .members(members)
+                .folders(folders)
+                .documents(documents)
+                .videos(videos)
+                .build();
+
 
         return ApiResponse.success(response, "Project details fetched successfully");
     }
@@ -357,6 +368,49 @@ public class ProjectServiceImpl implements ProjectService {
         Map<String, String> response = new HashMap<>();
         response.put("presignedUrl", presignedUrl);
         return ApiResponse.success(response, "Presigned URL generated successfully");
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<?> deleteProject(UUID projectId) {
+        log.info("Deleting project with id: {}", projectId);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
+        project.setLockedBy(customUserDetails.getUserId());
+        project.setLockedAt(LocalDateTime.now());
+        project.setStatus(ProjectStatus.INACTIVE.name());
+        projectRepository.save(project);
+        return ApiResponse.success("Project deleted successfully");
+    }
+
+    @Override
+    public ApiResponse<?> activeProject(UUID projectId) {
+        log.info("Updating project status with id: {}", projectId);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        if (project.getStatus().equals(ProjectStatus.ACTIVE.name())) {
+            throw new IllegalArgumentException("Project is already active");
+        }
+        project.setLockedAt(null);
+        project.setStatus(ProjectStatus.ACTIVE.name());
+        projectRepository.save(project);
+        return ApiResponse.success("Project updated successfully");
+
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<?> updateProject(UUID projectId, UpdateProjectReq request) {
+        log.info("Updating project with id: {} and request: {}", projectId, request);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+        project.setName(request.name());
+        project.setDescription(request.description());
+        projectRepository.save(project);
+        return ApiResponse.success("Project updated successfully");
     }
 
 

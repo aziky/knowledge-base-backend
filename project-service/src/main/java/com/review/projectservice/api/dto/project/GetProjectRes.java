@@ -7,6 +7,7 @@ public record GetProjectRes (
         String projectName,
         String projectRole,
         String joinedAt,
+        String lockedAt,
         String removedAt
 ) {
 }

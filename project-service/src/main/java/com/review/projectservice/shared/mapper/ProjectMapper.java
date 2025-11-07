@@ -9,6 +9,7 @@ import org.mapstruct.Mapping;
 public interface ProjectMapper {
 
     @Mapping(source = "project.name", target = "projectName")
+    @Mapping(source = "project.lockedAt", target = "lockedAt", dateFormat = "dd-MM-yyyy")
     @Mapping(source = "joinedAt", target = "joinedAt", dateFormat = "dd-MM-yyyy")
     @Mapping(source = "removedAt", target = "removedAt", dateFormat = "dd-MM-yyyy")
     GetProjectRes toGetProjectRes(ProjectMember projectMember);
