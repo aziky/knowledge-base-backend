@@ -1,6 +1,5 @@
 package com.review.projectservice.application.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.review.common.dto.request.NotificationMessage;
 import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
@@ -62,7 +61,6 @@ public class ProjectServiceImpl implements ProjectService {
     private final VideoRepository videoRepository;
     private final S3ServiceImpl s3Service;
     private final UserClient userClient; // injected user-service client
-    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -95,7 +93,8 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ApiResponse<?> getAllProject(Pageable pageable) {
         log.info("Start get all projects with");
-        Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, UUID.fromString("97582237-79b6-4fac-8974-fecebefb3e82"));
+        CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
+        Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, customUserDetails.getUserId());
         Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
         return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
     }
@@ -131,11 +130,11 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public ApiResponse<Void> removeUserFromProject(UUID projectId, UUID userId) {
-        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new EntityNotFoundException("Project member not found"));
-        member.setRemovedAt(LocalDateTime.now());
-        projectMemberRepository.save(member);
+    public ApiResponse<Void> removeUserFromProject(UUID projectId, DeleteMemberReq request) {
+        List<ProjectMember> memberList = projectMemberRepository.findByProjectIdAndUserIdIn(projectId, request.memberIds());
+        if (memberList.isEmpty()) throw new EntityNotFoundException("Member not found");
+        memberList.forEach(member -> member.setRemovedAt(LocalDateTime.now()));
+        projectMemberRepository.saveAll(memberList);
         return ApiResponse.success("User removed from project successfully");
     }
 
@@ -208,7 +207,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .toList();
 
         ProjectDetailRes.MemberInfo creator = members.stream()
-                .filter(m -> m.role().equals(ProjectRole.CREATOR.name()))
+                .filter(m -> m.email().equals(SecurityUtil.getCurrentUser().getUsername()))
                 .findFirst()
                 .orElse(null);
 

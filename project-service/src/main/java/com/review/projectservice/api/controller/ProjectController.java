@@ -1,10 +1,7 @@
 package com.review.projectservice.api.controller;
 
 import com.review.common.dto.response.ApiResponse;
-import com.review.projectservice.api.dto.project.CreateInvitationReq;
-import com.review.projectservice.api.dto.project.CreateProjectReq;
-import com.review.projectservice.api.dto.project.DeleteFileReq;
-import com.review.projectservice.api.dto.project.UpdateProjectReq;
+import com.review.projectservice.api.dto.project.*;
 import com.review.projectservice.application.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -58,12 +55,12 @@ public class ProjectController {
         return new RedirectView(projectService.verifiedInvitationToken(token));
     }
 
-    @DeleteMapping("/{projectId}/users/{userId}")
+    @DeleteMapping("/{projectId}/members")
     public ResponseEntity<?> removeUserFromProject(
             @PathVariable UUID projectId,
-            @PathVariable UUID userId
-    ) {
-        return ResponseEntity.ok(projectService.removeUserFromProject(projectId, userId));
+            @RequestBody DeleteMemberReq request
+            ) {
+        return ResponseEntity.ok(projectService.removeUserFromProject(projectId, request));
     }
 
     @GetMapping("/{projectId}")
