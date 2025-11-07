@@ -13,7 +13,7 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
 
     Page<ProjectMember> findAllByUserId(Pageable pageable, UUID userId);
 
-    Optional<ProjectMember> findByProjectIdAndUserId(UUID projectId, UUID userId);
+    List<ProjectMember> findByProjectIdAndUserIdIn(UUID projectId, List<UUID> userIds);
 
     List<ProjectMember> findAllByProjectId(UUID projectId);
 
