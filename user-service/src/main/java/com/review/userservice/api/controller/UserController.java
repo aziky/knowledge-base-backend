@@ -31,4 +31,9 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUser(name));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<?> searchUsersByEmail(@RequestParam String query) {
+        return ResponseEntity.ok(userService.searchUsersByEmail(query));
+    }
+
 }

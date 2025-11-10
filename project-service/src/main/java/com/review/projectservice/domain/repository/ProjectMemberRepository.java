@@ -11,10 +11,10 @@ import java.util.UUID;
 
 public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UUID> {
 
-    Page<ProjectMember> findAllByUserId(Pageable pageable, UUID userId);
+    Page<ProjectMember> findAllByUserIdAndRemovedAtIsNull(Pageable pageable, UUID userId);
 
     List<ProjectMember> findByProjectIdAndUserIdIn(UUID projectId, List<UUID> userIds);
 
-    List<ProjectMember> findAllByProjectId(UUID projectId);
+    List<ProjectMember> findAllByProjectIdAndRemovedAtIsNull(UUID projectId);
 
 }

@@ -94,7 +94,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ApiResponse<?> getAllProject(Pageable pageable) {
         log.info("Start get all projects with");
         CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
-        Page<ProjectMember> projects = projectMemberRepository.findAllByUserId(pageable, customUserDetails.getUserId());
+        Page<ProjectMember> projects = projectMemberRepository.findAllByUserIdAndRemovedAtIsNull(pageable, customUserDetails.getUserId());
         Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
         return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
     }
@@ -104,7 +104,7 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("Start send invitation for projectId: {} with request: {}", projectId, request);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
-        request.parallelStream()
+        request
                 .forEach(res -> sendInvitationEmail(project, res));
         return ApiResponse.success("Invitation sent successfully");
     }
@@ -131,6 +131,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional
     public ApiResponse<Void> removeUserFromProject(UUID projectId, DeleteMemberReq request) {
+        log.info("Start handle remove user from projectId {} with list member {}", projectId, request);
         List<ProjectMember> memberList = projectMemberRepository.findByProjectIdAndUserIdIn(projectId, request.memberIds());
         if (memberList.isEmpty()) throw new EntityNotFoundException("Member not found");
         memberList.forEach(member -> member.setRemovedAt(LocalDateTime.now()));
@@ -143,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found or inactive"));
 
-        List<ProjectMember> memberEntities = projectMemberRepository.findAllByProjectId(projectId);
+        List<ProjectMember> memberEntities = projectMemberRepository.findAllByProjectIdAndRemovedAtIsNull(projectId);
 
         List<UUID> userIds = memberEntities.stream()
                 .map(ProjectMember::getUserId)

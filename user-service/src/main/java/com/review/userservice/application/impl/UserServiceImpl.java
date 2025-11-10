@@ -88,4 +88,32 @@ public class UserServiceImpl implements UserService {
         return ApiResponse.success(results, msg);
     }
 
+    @Override
+    public ApiResponse<?> searchUsersByEmail(String email) {
+        log.info("Fetching users with email : {}", email);
+
+        List<User> listUser;
+        if (email != null && !email.trim().isEmpty()) {
+            String trimmed = email.trim();
+            listUser = userRepository.findAllByEmailContainingIgnoreCaseAndIsActiveTrue(trimmed);
+        } else {
+            listUser = userRepository.findAllByIsActiveTrue();
+        }
+
+        List<GetUserRes> results = listUser.stream()
+//                .filter(u -> u.getFullName() != null)
+                .map(u -> GetUserRes.builder()
+                        .id(u.getId())
+                        .email(u.getEmail())
+                        .fullName(u.getFullName())
+                        .build())
+                .toList();
+
+        String msg = (email != null && !email.trim().isEmpty())
+                ? "Fetched users matching name successfully"
+                : "Fetched all users successfully";
+
+        return ApiResponse.success(results, msg);
+    }
+
 }

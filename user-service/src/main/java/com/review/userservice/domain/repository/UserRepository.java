@@ -18,4 +18,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // New: search active users whose fullName contains the given string (case-insensitive)
     List<User> findAllByFullNameContainingIgnoreCaseAndIsActiveTrue(String name);
 
+    List<User> findAllByEmailContainingIgnoreCaseAndIsActiveTrue(String email);
+
 }

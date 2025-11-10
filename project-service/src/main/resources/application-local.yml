@@ -35,7 +35,7 @@ eureka:
     prefer-ip-address: true
 
 host:
-  frontend-host: http://localhost:3000/verified-successfully
+  frontend-host: http://localhost:5173/verified-successfully
   backend-host: http://localhost:7070/project-service/api
   verified-invitation: /project/verified-invitation
 
