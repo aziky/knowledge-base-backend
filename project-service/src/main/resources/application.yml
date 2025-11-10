@@ -64,24 +64,6 @@ springdoc:
     display-request-duration: true
     default-model-expand-depth: 10
     display-operation-id: true
-##
-##eureka:
-##  client:
-##    register-with-eureka: true
-##    fetch-registry: true
-##    service-url:
-##      defaultZone: http://localhost:8761/eureka/
-##  instance:
-##    prefer-ip-address: true
-#
-#eureka:
-#  client:
-#    enabled: false
-
-#host:
-#  frontend-host: http://localhost:3000/verified-successfully
-#  backend-host: http://localhost:7070/project-service/api
-#  verified-invitation: /project/verified-invitation
 
 
 internal:

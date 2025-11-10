@@ -14,4 +14,6 @@ public interface UserService {
 
     ApiResponse<?> getAllUser(String name);
 
+    ApiResponse<?> searchUsersByEmail(String query);
+
 }
