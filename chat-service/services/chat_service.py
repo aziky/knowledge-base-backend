@@ -175,7 +175,7 @@ class ChatService:
             self.logger.error(f"Error getting conversation history: {e}")
             return ""
 
-    def store_conversation_to_database(self, conversation_id, user_id, user_question, bot_answer, 
+    def store_conversation_to_database(self, conversation_id, user_id, user_question, bot_answer, project_id, 
                                       title=None, gemini_metadata=None):
         """
         Store a chat conversation exchange (user question + bot response) to the database.
@@ -200,6 +200,7 @@ class ChatService:
                 # Create new conversation
                 conversation = Conversation(
                     id=conversation_id,
+                    project_id=project_id,
                     user_id=user_id,
                     title=title,
                     status='ACTIVE',
@@ -295,7 +296,7 @@ class ChatService:
             self.logger.error(f"Error retrieving conversation from database: {str(e)}")
             return None
 
-    def get_user_conversations(self, user_id, status='ACTIVE', limit=20, offset=0):
+    def get_user_conversations(self, user_id, project_id, status='ACTIVE', limit=20, offset=0):
         """
         Get all conversations for a specific user.
         
@@ -309,7 +310,8 @@ class ChatService:
             dict: List of conversations with message counts
         """
         try:
-            query = Conversation.query.filter_by(user_id=user_id, status=status)
+            self.logger.info("Retrieving conversations for user %s with status %s and project_id %s", user_id, status, project_id)
+            query = Conversation.query.filter_by(user_id=user_id, status=status, project_id=project_id)
             query = query.order_by(Conversation.started_at.desc())
             
             # Apply pagination
@@ -1006,6 +1008,7 @@ Please provide only the summary without any preamble or additional commentary.""
                 user_id=user_id,
                 user_question=user_question,
                 bot_answer=gemini_response["answer"],
+                project_id=project_id,
                 title=f"{user_question[:50]}..." if len(user_question) > 50 else user_question,
                 gemini_metadata=gemini_metadata
             )

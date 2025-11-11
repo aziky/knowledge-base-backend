@@ -10,6 +10,7 @@ class Conversation(db.Model):
     
     id = db.Column(PG_UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(PG_UUID(as_uuid=False), nullable=True)
+    project_id = db.Column(PG_UUID(as_uuid=False), nullable=True)
     title = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(20), default='ACTIVE')
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -22,6 +23,7 @@ class Conversation(db.Model):
         return {
             'id': str(self.id) if self.id else None,
             'user_id': str(self.user_id) if self.user_id else None,
+            'project_id': str(self.project_id) if self.project_id else None,
             'title': self.title,
             'status': self.status,
             'started_at': self.started_at.isoformat() if self.started_at else None,
