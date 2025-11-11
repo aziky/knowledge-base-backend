@@ -136,6 +136,7 @@ def chat_controller(api):
                 
                 # Get query parameters
                 status = request.args.get('status', 'ACTIVE')
+                project_id = request.args.get('projectId', None)
                 limit = int(request.args.get('limit', 20))
                 offset = int(request.args.get('offset', 0))
                 
@@ -148,6 +149,7 @@ def chat_controller(api):
                 # Get user conversations
                 result = chat_service.get_user_conversations(
                     user_id=user_id,
+                    project_id=project_id,
                     status=status,
                     limit=limit,
                     offset=offset
