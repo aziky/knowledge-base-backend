@@ -2,9 +2,11 @@ package com.review.userservice.application.impl;
 
 import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
+import com.review.common.enumration.Role;
 import com.review.userservice.application.UserService;
 import com.review.userservice.domain.entity.User;
 import com.review.userservice.domain.repository.UserRepository;
+import com.review.userservice.shared.utils.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,12 +94,20 @@ public class UserServiceImpl implements UserService {
     public ApiResponse<?> searchUsersByEmail(String email) {
         log.info("Fetching users with email : {}", email);
 
+        boolean isAdmin = SecurityUtil.getCurrentUser().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(Role.ADMIN.name()));
+
         List<User> listUser;
-        if (email != null && !email.trim().isEmpty()) {
-            String trimmed = email.trim();
-            listUser = userRepository.findAllByEmailContainingIgnoreCaseAndIsActiveTrue(trimmed);
+        String trimmedEmail = (email != null) ? email.trim() : null;
+
+        if (isAdmin) {
+            listUser = (trimmedEmail != null && !trimmedEmail.isEmpty())
+                    ? userRepository.findAllByEmailContainingIgnoreCase(trimmedEmail)
+                    : userRepository.findAll();
         } else {
-            listUser = userRepository.findAllByIsActiveTrue();
+            listUser = (trimmedEmail != null && !trimmedEmail.isEmpty())
+                    ? userRepository.findAllByEmailContainingIgnoreCaseAndIsActiveTrue(trimmedEmail)
+                    : userRepository.findAllByIsActiveTrue();
         }
 
         List<GetUserRes> results = listUser.stream()

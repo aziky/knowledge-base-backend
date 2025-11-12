@@ -57,7 +57,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(PUBLIC_ENDPOINT).permitAll()
-                        .pathMatchers(USER_ENDPOINT).hasAuthority(Role.USER.name())
+                        .pathMatchers(USER_ENDPOINT).hasAnyAuthority(Role.USER.name(), Role.ADMIN.name())
                         .anyExchange().authenticated()
                 )
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)

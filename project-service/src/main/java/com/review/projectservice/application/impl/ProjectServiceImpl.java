@@ -5,6 +5,7 @@ import com.review.common.dto.request.user.GetUserRes;
 import com.review.common.dto.response.ApiResponse;
 import com.review.common.enumration.ProjectRole;
 import com.review.common.enumration.ProjectStatus;
+import com.review.common.enumration.Role;
 import com.review.common.enumration.Template;
 import com.review.common.shared.CustomUserDetails;
 import com.review.projectservice.api.dto.document.DocumentRes;
@@ -94,6 +95,13 @@ public class ProjectServiceImpl implements ProjectService {
     public ApiResponse<?> getAllProject(Pageable pageable) {
         log.info("Start get all projects with");
         CustomUserDetails customUserDetails = SecurityUtil.getCurrentUser();
+        if (customUserDetails.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(Role.ADMIN.name()))) {
+            log.info("User is ADMIN, fetching all projects");
+            Page<Project> projects = projectRepository.findAll(pageable);
+            Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectResFromProject);
+            return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");
+        }
         Page<ProjectMember> projects = projectMemberRepository.findAllByUserIdAndRemovedAtIsNull(pageable, customUserDetails.getUserId());
         Page<GetProjectRes> response = projects.map(projectMapper::toGetProjectRes);
         return ApiResponse.success(PageResponse.of(response), "Get all projects successfully");

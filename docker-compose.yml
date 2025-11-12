@@ -81,6 +81,25 @@ services:
       networks:
         - kb_network
 
+    notification-service:
+      build:
+        context: .
+        dockerfile: ./notification-service/Dockerfile
+      image: notification-service:latest
+      container_name: notification-service
+      environment:
+        - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      env_file:
+        - ./notification-service/.env
+      ports:
+        - "7073:7073"
+      depends_on:
+        eureka-server:
+          condition: service_started
+      networks:
+        - kb_network
+
+
     gateway-service:
       build:
         context: .
@@ -103,6 +122,25 @@ services:
       networks:
         - kb_network
 
+    chat-service:
+      build:
+        context: ./chat-service
+        dockerfile: Dockerfile
+      image: python-service:latest
+      container_name: chat-service
+      ports:
+        - "7075:7075"
+      env_file:
+        - ./chat-service/.env
+      depends_on:
+        redis:
+          condition: service_healthy
+        eureka-server:
+          condition: service_started
+      networks:
+        - kb_network
+
+
 
 volumes:
   redis_data:
@@ -111,4 +149,5 @@ volumes:
 
 networks:
   kb_network:
+    name: kb_network
     driver: bridge

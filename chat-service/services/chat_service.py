@@ -961,7 +961,7 @@ Please provide only the summary without any preamble or additional commentary.""
             conversation_history = self.get_conversation_history(conversation_id)
 
             # Fetch project details if document_ids or video_ids not provided
-            if project_id:
+            if document_ids is None and video_ids is None:
                 self.logger.info(f"Fetching project details for project_id: {project_id}")
                 project_details = self._get_project_details(project_id)
                 document_ids =  project_details.get("document_ids", [])

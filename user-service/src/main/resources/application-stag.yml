@@ -21,7 +21,7 @@ eureka:
 
 
 openapi:
-  server-url: http://${USER_SERVICE}:7071/user-service/api
+  server-url: http://user-service:7071/user-service/api
 
 springdoc:
   api-docs:

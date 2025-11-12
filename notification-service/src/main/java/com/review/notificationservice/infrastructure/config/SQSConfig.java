@@ -11,6 +11,8 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
+import java.net.URI;
+
 @Configuration
 @RequiredArgsConstructor
 public class SQSConfig {
@@ -22,6 +24,7 @@ public class SQSConfig {
     public SqsClient sqsClient() {
         return SqsClient.builder()
                 .region(Region.of(sqsProperties.region()))
+                .endpointOverride(URI.create(sqsProperties.emailQueue()))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(awsProperties.accessKey(), awsProperties.secretKey())
                 ))
