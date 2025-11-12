@@ -4,6 +4,8 @@ server:
     context-path: /api
 
 spring:
+  profiles:
+    active: stag
   application:
     name: notification-service
 
@@ -36,6 +38,14 @@ spring:
         region: ${AWS_REGION}
         sender: ${AWS_SES_SENDER_EMAIL}
 
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER}
+  instance:
+    prefer-ip-address: true
 
 host:
   backend-host: http://localhost:7071/api
